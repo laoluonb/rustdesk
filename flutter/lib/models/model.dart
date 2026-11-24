@@ -67,6 +67,7 @@ class CachedPeerData {
   bool secure = false;
   bool direct = false;
   String streamType = '';
+  String relayServer = '';
 
   CachedPeerData();
 
@@ -80,6 +81,7 @@ class CachedPeerData {
       'secure': secure,
       'direct': direct,
       'streamType': streamType,
+      'relayServer': relayServer,
     });
   }
 
@@ -96,6 +98,7 @@ class CachedPeerData {
       data.secure = map['secure'];
       data.direct = map['direct'];
       data.streamType = map['streamType'];
+      data.relayServer = map['relayServer'] as String? ?? '';
       return data;
     } catch (e) {
       debugPrint('Failed to parse CachedPeerData: $e');
@@ -264,17 +267,19 @@ class FfiModel with ChangeNotifier {
     timerScreenshot?.cancel();
   }
 
-  setConnectionType(
-      String peerId, bool secure, bool direct, String streamType) {
+  setConnectionType(String peerId, bool secure, bool direct, String streamType,
+      String relayServer) {
     cachedPeerData.secure = secure;
     cachedPeerData.direct = direct;
     cachedPeerData.streamType = streamType;
+    cachedPeerData.relayServer = relayServer;
     _secure = secure;
     _direct = direct;
     try {
       var connectionType = ConnectionTypeState.find(peerId);
       connectionType.setSecure(secure);
       connectionType.setDirect(direct);
+      connectionType.relayServer.value = relayServer;
       connectionType.setStreamType(streamType);
     } catch (e) {
       //
@@ -291,6 +296,10 @@ class FfiModel with ChangeNotifier {
           SvgPicture.asset('assets/$icon.svg', width: 48, height: 48);
       String connectionText =
           getConnectionText(secure!, direct!, cachedPeerData.streamType);
+      final relay = cachedPeerData.relayServer;
+      if (relay.isNotEmpty) {
+        connectionText += '\n${translate("Relay Server")}: $relay';
+      }
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -319,7 +328,8 @@ class FfiModel with ChangeNotifier {
       'link': '',
     }, sessionId, peerId);
     updatePrivacyMode(data.updatePrivacyMode, sessionId, peerId);
-    setConnectionType(peerId, data.secure, data.direct, data.streamType);
+    setConnectionType(
+        peerId, data.secure, data.direct, data.streamType, data.relayServer);
     await handlePeerInfo(data.peerInfo, peerId, true);
     if (data.lastCursorId.isNotEmpty) {
       updateLastCursorId(data.lastCursorId);
@@ -345,8 +355,17 @@ class FfiModel with ChangeNotifier {
         handlePlatformAdditions(evt, sessionId, peerId);
       } else if (name == 'connection_ready') {
         setConnectionType(peerId, evt['secure'] == 'true',
-            evt['direct'] == 'true', evt['stream_type'] ?? '');
+            evt['direct'] == 'true', evt['stream_type'] ?? '',
+            evt['relay_server'] ?? '');
         resetRestartReconnectState();
+      } else if (name == 'connection_route_closed') {
+        _secure = null;
+        _direct = null;
+        cachedPeerData.relayServer = '';
+        if (Get.isRegistered<ConnectionType>(
+            tag: ConnectionTypeState.tag(peerId))) {
+          ConnectionTypeState.find(peerId).clearRoute();
+        }
       } else if (name == 'switch_display') {
         // switch display is kept for backward compatibility
         handleSwitchDisplay(evt, sessionId, peerId);

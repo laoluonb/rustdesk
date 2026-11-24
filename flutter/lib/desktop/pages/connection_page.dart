@@ -35,6 +35,7 @@ class OnlineStatusWidget extends StatefulWidget {
 class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
   final _svcStopped = Get.find<RxBool>(tag: 'stop-service');
   final _svcIsUsingPublicServer = true.obs;
+  final _rendezvousServer = ''.obs;
   Timer? _updateTimer;
 
   double get em => 14.0;
@@ -125,15 +126,19 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
                         : Color.fromARGB(255, 224, 79, 95)),
               ),
             ).marginSymmetric(horizontal: em),
-            Container(
-              width: isIncomingOnly ? 226 : null,
-              child: _buildConnStatusMsg(),
-            ),
+            if (isIncomingOnly)
+              SizedBox(width: 226, child: _buildConnStatusMsg())
+            else
+              Flexible(flex: 2, child: _buildConnStatusMsg()),
             // stop
             if (!isIncomingOnly) startServiceWidget(),
             // ready && public
             // No need to show the guide if is custom client.
-            if (!isIncomingOnly) setupServerWidget(),
+            if (!isIncomingOnly &&
+                !_svcStopped.value &&
+                stateGlobal.svcStatus.value == SvcStatus.ready &&
+                _svcIsUsingPublicServer.value)
+              setupServerWidget(),
           ],
         );
 
@@ -155,15 +160,23 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
   _buildConnStatusMsg() {
     widget.onSvcStatusChanged?.call();
-    return Text(
-      _svcStopped.value
-          ? translate("Service is not running")
-          : stateGlobal.svcStatus.value == SvcStatus.connecting
-              ? translate("connecting_status")
-              : stateGlobal.svcStatus.value == SvcStatus.notReady
-                  ? translate("not_ready_status")
-                  : translate('Ready'),
-      style: TextStyle(fontSize: em),
+    final status = _svcStopped.value
+        ? translate("Service is not running")
+        : stateGlobal.svcStatus.value == SvcStatus.connecting
+            ? translate("connecting_status")
+            : stateGlobal.svcStatus.value == SvcStatus.notReady
+                ? translate("not_ready_status")
+                : translate('Ready');
+    final server = _rendezvousServer.value;
+    final text = !_svcStopped.value &&
+            stateGlobal.svcStatus.value == SvcStatus.ready &&
+            server.isNotEmpty
+        ? '$status · ${translate("ID Server")}: $server'
+        : status;
+    return Tooltip(
+      message: text,
+      child: Text(text,
+          overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: em)),
     );
   }
 
@@ -171,6 +184,7 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
     final status =
         jsonDecode(await bind.mainGetConnectStatus()) as Map<String, dynamic>;
     final statusNum = status['status_num'] as int;
+    _rendezvousServer.value = status['rendezvous_server'] as String? ?? '';
     if (statusNum == 0) {
       stateGlobal.svcStatus.value = SvcStatus.connecting;
     } else if (statusNum == -1) {

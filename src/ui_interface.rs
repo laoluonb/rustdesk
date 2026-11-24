@@ -46,6 +46,8 @@ pub struct UiStatus {
     pub id: String,
     #[cfg(feature = "flutter")]
     pub video_conn_count: usize,
+    #[cfg(feature = "flutter")]
+    pub rendezvous_server: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -66,6 +68,8 @@ lazy_static::lazy_static! {
         id: "".to_owned(),
         #[cfg(feature = "flutter")]
         video_conn_count: 0,
+        #[cfg(feature = "flutter")]
+        rendezvous_server: String::new(),
     }));
     static ref ASYNC_JOB_STATUS : Arc<Mutex<String>> = Default::default();
     static ref ASYNC_HTTP_STATUS : Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -1409,6 +1413,8 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
 
     loop {
         if let Ok(mut c) = ipc::connect(1000, "").await {
+            #[cfg(feature = "flutter")]
+            let mut rendezvous_server = String::new();
             let mut timer = crate::rustdesk_interval(time::interval(time::Duration::from_secs(1)));
             loop {
                 tokio::select! {
@@ -1438,6 +1444,11 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                                     }
                                 } else if name == "temporary-password" {
                                     *TEMPORARY_PASSWD.lock().unwrap() = value;
+                                } else if name == "rendezvous_server" {
+                                    #[cfg(feature = "flutter")]
+                                    if let Some((selected, _)) = value.split_once(',') {
+                                        rendezvous_server = selected.to_owned();
+                                    }
                                 }
                             }
                             #[cfg(feature = "flutter")]
@@ -1462,6 +1473,12 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                                     id: id.clone(),
                                     #[cfg(feature = "flutter")]
                                     video_conn_count,
+                                    #[cfg(feature = "flutter")]
+                                    rendezvous_server: if x > 0 {
+                                        rendezvous_server.clone()
+                                    } else {
+                                        String::new()
+                                    },
                                 };
                             }
                             Ok(Some(ipc::Data::ControlPermissionsRemoteModify(v))) => {
@@ -1484,6 +1501,8 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                         allow_err!(c.send(&data).await);
                     }
                     _ = timer.tick() => {
+                        #[cfg(feature = "flutter")]
+                        c.send(&ipc::Data::Config(("rendezvous_server".to_owned(), None))).await.ok();
                         c.send(&ipc::Data::OnlineStatus(None)).await.ok();
                         c.send(&ipc::Data::Options(None)).await.ok();
                         c.send(&ipc::Data::Config(("id".to_owned(), None))).await.ok();
@@ -1514,6 +1533,8 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
             id: id.clone(),
             #[cfg(feature = "flutter")]
             video_conn_count,
+            #[cfg(feature = "flutter")]
+            rendezvous_server: String::new(),
         };
         sleep(1.).await;
     }

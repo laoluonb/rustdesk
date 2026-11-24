@@ -387,6 +387,28 @@ impl Client {
         ),
         (i32, String),
     )> {
+        let ((stream, direct, pk, kcp, transport, _), feedback) =
+            Self::start_with_route(peer, key, token, conn_type, interface).await?;
+        Ok(((stream, direct, pk, kcp, transport), feedback))
+    }
+
+    pub(super) async fn start_with_route(
+        peer: &str,
+        key: &str,
+        token: &str,
+        conn_type: ConnType,
+        interface: impl Interface,
+    ) -> ResultType<(
+        (
+            Stream,
+            bool,
+            Option<Vec<u8>>,
+            Option<KcpStream>,
+            &'static str,
+            Option<String>,
+        ),
+        (i32, String),
+    )> {
         debug_assert!(peer == interface.get_id());
         interface.update_direct(None);
         interface.update_received(false);
@@ -429,6 +451,7 @@ impl Client {
             Option<Vec<u8>>,
             Option<KcpStream>,
             &'static str,
+            Option<String>,
         ),
         (i32, String),
         bool,
@@ -446,6 +469,7 @@ impl Client {
                     None,
                     None,
                     "TCP",
+                    None,
                 ),
                 (0, "".to_owned()),
                 false,
@@ -460,6 +484,7 @@ impl Client {
                     None,
                     None,
                     "TCP",
+                    None,
                 ),
                 (0, "".to_owned()),
                 false,
@@ -1228,7 +1253,7 @@ impl Client {
                                 drop(webrtc_guard.take());
                                 let mut relay_conn = Self::request_relay(
                                     &peer,
-                                    relay_server_rr,
+                                    relay_server_rr.clone(),
                                     &rendezvous_server,
                                     !signed_id_pk.is_empty(),
                                     &key,
@@ -1269,8 +1294,10 @@ impl Client {
                                 let _ = guard.into_inner();
                             }
                         }
+                        let relay = matches!(typ, "Relay" | "WebSocket")
+                            .then(|| check_port(relay_server_rr, RELAY_PORT));
                         return Ok((
-                            (conn, direct, pk, kcp, typ),
+                            (conn, direct, pk, kcp, typ, relay),
                             (feedback, rendezvous_server),
                             false,
                         ));
@@ -1432,6 +1459,7 @@ impl Client {
         Option<Vec<u8>>,
         Option<KcpStream>,
         &'static str,
+        Option<String>,
     )> {
         // Guard the offerer for the whole of connect(): any early return — cancellation during the
         // awaits below, the relay override, or a secure_connection failure — closes its pc via the
@@ -1657,7 +1685,8 @@ impl Client {
             }
         }
         log::debug!("{} punch secure_connection ok", punch_type);
-        Ok((conn, direct, pk, kcp, typ))
+        let relay = (typ == "Relay").then(|| check_port(relay_server, RELAY_PORT));
+        Ok((conn, direct, pk, kcp, typ, relay))
     }
 
     /// Establish secure connection with the server.

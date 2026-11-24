@@ -78,6 +78,7 @@ class ConnectionType {
   final Rx<String> _secure = kInvalidValueStr.obs;
   final Rx<String> _direct = kInvalidValueStr.obs;
   final Rx<String> _stream_type = kInvalidValueStr.obs;
+  final relayServer = ''.obs;
 
   Rx<String> get secure => _secure;
   Rx<String> get direct => _direct;
@@ -98,6 +99,11 @@ class ConnectionType {
 
   void setStreamType(String v) {
     _stream_type.value = v;
+  }
+
+  void clearRoute() {
+    _stream_type.value = kInvalidValueStr;
+    relayServer.value = '';
   }
 
   bool isValid() {

@@ -801,6 +801,26 @@ class _RemotePageState extends State<RemotePage>
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
+      bottomNavigationBar: Obx(() {
+        final route = ConnectionTypeState.find(widget.id);
+        if (!route.isValid() || _ffi.inputModel.relativeMouseMode.value) {
+          return const SizedBox.shrink();
+        }
+        final relay = route.relayServer.value;
+        final details = getConnectionText(
+            route.secure.value == ConnectionType.strSecure,
+            route.direct.value == ConnectionType.strDirect,
+            route.stream_type.value);
+        final text =
+            relay.isEmpty ? details : '${translate("Relay Server")}: $relay';
+        return Tooltip(
+          message: relay.isEmpty ? details : '$text\n$details',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text(text, overflow: TextOverflow.ellipsis),
+          ),
+        );
+      }),
       body: Obx(() {
         final imageReady = _ffi.ffiModel.pi.isSet.isTrue &&
             _ffi.ffiModel.waitForFirstImage.isFalse;

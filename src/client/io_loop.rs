@@ -195,7 +195,7 @@ impl<T: InvokeUiSession> Remote<T> {
             ConnType::default()
         };
 
-        match Client::start(
+        match Client::start_with_route(
             &self.handler.get_id(),
             key,
             token,
@@ -204,7 +204,10 @@ impl<T: InvokeUiSession> Remote<T> {
         )
         .await
         {
-            Ok(((mut peer, direct, pk, kcp, stream_type), (feedback, rendezvous_server))) => {
+            Ok((
+                (mut peer, direct, pk, kcp, stream_type, relay_server),
+                (feedback, rendezvous_server),
+            )) => {
                 self.handler
                     .connection_round_state
                     .lock()
@@ -235,8 +238,12 @@ impl<T: InvokeUiSession> Remote<T> {
                 } else {
                     stream_type
                 };
-                self.handler
-                    .set_connection_type(is_secured, direct, stream_type); // flutter -> connection_ready
+                self.handler.set_connection_route(
+                    is_secured,
+                    direct,
+                    stream_type,
+                    relay_server.as_deref(),
+                );
                 if !is_secured
                     && !crate::common::is_direct_ip_access(&self.handler.get_id())
                     && !client::confirm_insecure_connection(&self.handler, &mut self.receiver).await
@@ -464,13 +471,16 @@ impl<T: InvokeUiSession> Remote<T> {
     }
 
     fn handle_disconnected(&self, round: u32) {
-        // set_disconnected_ok is used to check if new connection round is started.
+        // Ignore disconnection from an older round that was replaced by a reconnect.
         let _set_disconnected_ok = self
             .handler
             .connection_round_state
             .lock()
             .unwrap()
             .set_disconnected(round);
+        if _set_disconnected_ok {
+            self.handler.clear_connection_route();
+        }
 
         #[cfg(not(target_os = "ios"))]
         if self.handler.is_default() && _set_disconnected_ok {

@@ -740,15 +740,30 @@ impl InvokeUiSession for FlutterHandler {
     }
 
     fn set_connection_type(&self, is_secured: bool, direct: bool, stream_type: &str) {
+        self.set_connection_route(is_secured, direct, stream_type, None);
+    }
+
+    fn set_connection_route(
+        &self,
+        is_secured: bool,
+        direct: bool,
+        stream_type: &str,
+        relay_server: Option<&str>,
+    ) {
         self.push_event(
             "connection_ready",
             &[
-                ("secure", &is_secured.to_string()),
-                ("direct", &direct.to_string()),
-                ("stream_type", &stream_type.to_string()),
+                ("secure", if is_secured { "true" } else { "false" }),
+                ("direct", if direct { "true" } else { "false" }),
+                ("stream_type", stream_type),
+                ("relay_server", relay_server.unwrap_or_default()),
             ],
             &[],
         );
+    }
+
+    fn clear_connection_route(&self) {
+        self.push_event::<&str>("connection_route_closed", &[], &[]);
     }
 
     fn set_fingerprint(&self, fingerprint: String) {
