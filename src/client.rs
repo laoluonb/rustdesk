@@ -489,6 +489,15 @@ impl Client {
             }
         };
 
+        let (key, token) = if other_server.is_empty() && crate::server_preset::is_automatic() {
+            let (key, accepts_home_token) =
+                crate::server_preset::automatic_credentials(&rendezvous_server);
+            let uses_home_api = crate::ui_interface::get_api_server() == crate::server_preset::API;
+            (key, if accepts_home_token && uses_home_api { token } else { "" })
+        } else {
+            (key, token)
+        };
+
         // Same relay gate as the v6 socket below: under any forced relay the v6 punch cannot
         // be used, so probing v6 reachability is wasted work on every such connection.
         if crate::get_ipv6_punch_enabled() && !interface.is_force_relay() {

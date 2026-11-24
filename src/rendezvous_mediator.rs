@@ -350,6 +350,7 @@ impl RendezvousMediator {
             if !config::option2bool("stop-service", &Config::get_option("stop-service"))
                 && !crate::platform::installing_service()
             {
+                crate::server_preset::refresh().await;
                 let mut futs = Vec::new();
                 let servers = Config::get_rendezvous_servers();
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
@@ -378,7 +379,19 @@ impl RendezvousMediator {
                         SHOULD_EXIT.store(true, Ordering::SeqCst);
                     }));
                 }
+                let preset_monitor = tokio::spawn(async {
+                    while !SHOULD_EXIT.load(Ordering::SeqCst) {
+                        sleep(20.).await;
+                        if !SHOULD_EXIT.load(Ordering::SeqCst)
+                            && crate::server_preset::refresh().await
+                        {
+                            Self::restart();
+                            break;
+                        }
+                    }
+                });
                 join_all(futs).await;
+                preset_monitor.abort();
             } else {
                 server.write().unwrap().close_connections();
             }

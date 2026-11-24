@@ -1303,6 +1303,10 @@ fn get_api_server_(api: String, custom: String) -> String {
     if !api.is_empty() {
         return api.to_owned();
     }
+    if custom.is_empty() && crate::server_preset::is_automatic() {
+        // Keep account requests on the same API when rendezvous fails over.
+        return crate::server_preset::API.to_owned();
+    }
     let s0 = get_custom_rendezvous_server(custom);
     if !s0.is_empty() {
         let s = crate::increase_port(&s0, -2);
@@ -2181,7 +2185,12 @@ pub async fn get_key(sync: bool) -> String {
         options.remove("key").unwrap_or_default()
     };
     if key.is_empty() {
-        key = config::RS_PUB_KEY.to_owned();
+        let custom = get_custom_rendezvous_server(Config::get_option("custom-rendezvous-server"));
+        key = if crate::server_preset::is_home(&custom) {
+            crate::server_preset::KEY.to_owned()
+        } else {
+            config::RS_PUB_KEY.to_owned()
+        };
     }
     key
 }
