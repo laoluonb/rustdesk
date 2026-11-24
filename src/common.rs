@@ -802,6 +802,12 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     let (mut a, mut b) = get_rendezvous_server_(ms_timeout);
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let (mut a, mut b) = get_rendezvous_server_(ms_timeout).await;
+    if crate::server_preset::is_automatic() {
+        b.retain(|server| !is_public(server));
+        if is_public(&a) {
+            a = crate::server_preset::ID_ADDRESS.to_owned();
+        }
+    }
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::get_license_from_exe_name() {
         if !lic.host.is_empty() {
@@ -1304,7 +1310,6 @@ fn get_api_server_(api: String, custom: String) -> String {
         return api.to_owned();
     }
     if custom.is_empty() && crate::server_preset::is_automatic() {
-        // Keep account requests on the same API when rendezvous fails over.
         return crate::server_preset::API.to_owned();
     }
     let s0 = get_custom_rendezvous_server(custom);
@@ -1321,7 +1326,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    crate::server_preset::API.to_owned()
 }
 
 #[inline]

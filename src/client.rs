@@ -47,7 +47,7 @@ use hbb_common::{
     bail,
     config::{
         self, use_ws, Config, LocalConfig, PeerConfig, PeerInfoSerde, Resolution,
-        CONNECT_TIMEOUT, READ_TIMEOUT, RELAY_PORT, RENDEZVOUS_PORT, RENDEZVOUS_SERVERS,
+        CONNECT_TIMEOUT, READ_TIMEOUT, RELAY_PORT, RENDEZVOUS_PORT,
     },
     futures::future::{select_ok, BoxFuture, FutureExt},
     get_version_number, log,
@@ -499,26 +499,22 @@ impl Client {
         };
         let (rendezvous_server, servers, contained) = if other_server.is_empty() {
             crate::get_rendezvous_server(1_000).await
+        } else if other_server.eq_ignore_ascii_case(PUBLIC_SERVER)
+            || crate::common::is_public(other_server)
+        {
+            bail!("Public RustDesk servers are disabled in this client");
         } else {
-            if other_server == PUBLIC_SERVER {
-                (
-                    check_port(RENDEZVOUS_SERVERS[0], RENDEZVOUS_PORT),
-                    RENDEZVOUS_SERVERS[1..]
-                        .iter()
-                        .map(|x| x.to_string())
-                        .collect(),
-                    true,
-                )
-            } else {
-                (check_port(other_server, RENDEZVOUS_PORT), Vec::new(), true)
-            }
+            (check_port(other_server, RENDEZVOUS_PORT), Vec::new(), true)
         };
 
-        let (key, token) = if other_server.is_empty() && crate::server_preset::is_automatic() {
-            let (key, accepts_home_token) =
-                crate::server_preset::automatic_credentials(&rendezvous_server);
+        let (key, token) = if other_server.is_empty()
+            && crate::server_preset::is_automatic()
+            && crate::server_preset::is_home(&rendezvous_server)
+        {
             let uses_home_api = crate::ui_interface::get_api_server() == crate::server_preset::API;
-            (key, if accepts_home_token && uses_home_api { token } else { "" })
+            (crate::server_preset::KEY, if uses_home_api { token } else { "" })
+        } else if other_server.is_empty() && crate::server_preset::is_automatic() {
+            (key, "")
         } else {
             (key, token)
         };

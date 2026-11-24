@@ -1,0 +1,99 @@
+name: Publish Laoluowl release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: New release tag, for example v1.5.3-laoluowl.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: laoluowl-release
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    if: github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
+    uses: ./.github/workflows/flutter-build.yml
+    permissions:
+      contents: write
+    with:
+      upload-artifact: true
+      artifacts-only: true
+      upload-tag: ${{ inputs.tag }}
+
+  publish:
+    needs: packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Download native packages from this build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: '{publish-*,rustdesk-ios-unsigned}'
+          path: artifacts
+
+      - name: Check packages and write SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v1\.5\.3-laoluowl\.[1-9][0-9]*$ ]]
+          mkdir release-assets
+          while IFS= read -r -d '' file; do
+            name="${file##*/}"
+            test -s "$file"
+            if [[ -e "release-assets/$name" ]]; then
+              cmp "$file" "release-assets/$name"
+            else
+              cp "$file" "release-assets/$name"
+            fi
+          done < <(find artifacts -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.dmg' \
+            -o -name '*.apk' -o -name '*.ipa' -o -name '*.deb' -o -name '*.rpm' \
+            -o -name '*.AppImage' -o -name '*.flatpak' -o -name '*.pkg.tar.zst' \
+            -o -name 'rustdesk.sbom.json' \) -print0)
+          cd release-assets
+          for package in rustdesk-1.5.3-{x86_64,aarch64}.{msi,exe,dmg,deb} \
+            rustdesk-1.5.3-{armv7,x86_64,aarch64,universal}.apk rustdesk-ios-unsigned.ipa; do
+            test -s "$package"
+          done
+          sha256sum -- * > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Publish verified packages as one release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > existing-release.json 2>release-error.log; then
+            jq -e '.isDraft' existing-release.json
+          else
+            cat > release-notes.md <<'NOTES'
+          - 默认使用 `rustdesk.laoluowl.cn`，自建服务器不可用时不会自动切到 RustDesk 官方 ID 服务器。仍可手动配置其他自建服务器。
+          - Flutter 桌面版首页显示当前 ID 服务器；远控窗口底部显示实际使用的 RustDesk 中继地址或直连状态。
+          - 提供 Windows、macOS、Linux、Android 安装包，以及需要自行签名的 iOS IPA。Windows 安装包未签名，macOS 安装包未公证，Android 包使用调试签名。
+          - `SHA256SUMS.txt` 可用于核对安装包。
+          NOTES
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
+              --title "Laoluowl RustDesk ${RELEASE_TAG#v}" --notes-file release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release view "$RELEASE_TAG" --json databaseId,targetCommitish > release.json
+          jq -e --arg sha "$GITHUB_SHA" '.targetCommitish == $sha' release.json
+          release_id=$(jq -er '.databaseId' release.json)
+          gh api "repos/$GH_REPO/releases/$release_id/assets?per_page=100" > uploaded.json
+          jq -r '.[].name' uploaded.json | LC_ALL=C sort > uploaded-names.txt
+          ls -1 release-assets | LC_ALL=C sort > expected-names.txt
+          diff -u expected-names.txt uploaded-names.txt
+          while read -r digest filename; do
+            remote_digest=$(jq -er --arg name "$filename" '.[] | select(.name == $name) | .digest' uploaded.json)
+            test "$remote_digest" = "sha256:$digest"
+          done < release-assets/SHA256SUMS.txt
+          gh release edit "$RELEASE_TAG" --draft=false --latest
