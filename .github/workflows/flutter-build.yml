@@ -9,6 +9,9 @@ on:
       upload-tag:
         type: string
         default: "nightly"
+      artifacts-only:
+        type: boolean
+        default: false
       publish-update-metadata:
         type: boolean
         default: false
@@ -120,13 +123,22 @@ jobs:
             -o cyclonedx-json=rustdesk.sbom.json
 
       - name: Publish Release
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        if: env.UPLOAD_ARTIFACT == 'true'
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             rustdesk.sbom.json
+
+      - name: Archive Release
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-release-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            rustdesk.sbom.json
+          if-no-files-found: error
 
   generate-bridge:
     needs: [validate-update-metadata-keys]
@@ -570,14 +582,24 @@ jobs:
           if-no-files-found: error
 
       - name: Publish Release
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true'
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             ./SignOutput/rustdesk-*.msi
             ./SignOutput/rustdesk-*.exe
+
+      - name: Archive Release
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-release-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ./SignOutput/rustdesk-*.msi
+            ./SignOutput/rustdesk-*.exe
+          if-no-files-found: error
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
@@ -784,13 +806,22 @@ jobs:
           if-no-files-found: error
 
       - name: Publish Release
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true'
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             ./SignOutput/rustdesk-*.exe
+
+      - name: Archive Release
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-release-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ./SignOutput/rustdesk-*.exe
+          if-no-files-found: error
 
   build-rustdesk-ios:
     if: ${{ inputs.upload-artifact }}
@@ -896,6 +927,24 @@ jobs:
           # flutter build ipa --release --obfuscate --split-debug-info=./split-debug-info --no-codesign
           # for easy debugging
           flutter build ipa --release --no-codesign
+
+      - name: Archive unsigned iOS app
+        if: ${{ inputs.artifacts-only }}
+        shell: bash
+        run: |
+          app=$(find flutter/build/ios/archive -type d -name '*.app' -print -quit)
+          test -n "$app"
+          mkdir -p Payload
+          ditto "$app" "Payload/$(basename "$app")"
+          ditto -c -k --keepParent Payload rustdesk-ios-unsigned.ipa
+
+      - name: Upload unsigned iOS IPA
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rustdesk-ios-unsigned
+          path: rustdesk-ios-unsigned.ipa
+          if-no-files-found: error
 
       # - name: Upload Artifacts
       #   # if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
@@ -1196,13 +1245,22 @@ jobs:
           if-no-files-found: error
 
       - name: Publish DMG package
-        if: env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true'
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             rustdesk*-${{ matrix.job.arch }}.dmg
+
+      - name: Archive DMG package
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true' && env.PUBLISH_UPDATE_METADATA != 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-dmg-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            rustdesk*-${{ matrix.job.arch }}.dmg
+          if-no-files-found: error
 
   publish-signed-update-metadata:
     needs: [build-for-windows-flutter, build-for-windows-sciter, build-for-macOS]
@@ -1306,6 +1364,7 @@ jobs:
             --release-base-url https://github.com/rustdesk/rustdesk/releases/download
 
       - name: Upload signed update artifacts
+        if: ${{ !inputs.artifacts-only }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1320,9 +1379,25 @@ jobs:
             ./artifacts/rustdesk-${{ env.VERSION }}-aarch64.dmg
             ./artifacts/rustdesk-${{ env.VERSION }}-x86_64.dmg
 
+      - name: Archive Upload signed update artifacts
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: upload-signed-update-artifacts-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ./artifacts/rustdesk-${{ env.VERSION }}-x86_64.exe
+            ./artifacts/rustdesk-${{ env.VERSION }}-x86_64.msi
+            ./artifacts/rustdesk-${{ env.VERSION }}-aarch64.exe
+            ./artifacts/rustdesk-${{ env.VERSION }}-aarch64.msi
+            ./artifacts/rustdesk-${{ env.VERSION }}-x86-sciter.exe
+            ./artifacts/rustdesk-${{ env.VERSION }}-aarch64.dmg
+            ./artifacts/rustdesk-${{ env.VERSION }}-x86_64.dmg
+          if-no-files-found: error
+
       # The release action replaces same-name assets, so keep published sidecars
       # until replacements are ready.
       - name: Upload signed update metadata signature
+        if: ${{ !inputs.artifacts-only }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1330,14 +1405,31 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: ./rustdesk-update.json.sig
 
+      - name: Archive Upload signed update metadata signature
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: upload-signed-update-metadata-signature-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: ./rustdesk-update.json.sig
+          if-no-files-found: error
+
       # Clients discover the release through metadata, so publish it only after every referenced asset.
       - name: Publish signed update metadata
+        if: ${{ !inputs.artifacts-only }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           fail_on_unmatched_files: true
           tag_name: ${{ env.TAG_NAME }}
           files: ./rustdesk-update.json
+
+      - name: Archive signed update metadata
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-signed-update-metadata-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: ./rustdesk-update.json
+          if-no-files-found: error
 
   publish_unsigned:
     needs:
@@ -1419,11 +1511,20 @@ jobs:
           tar czf rustdesk-${{ env.VERSION }}-unsigned.tar.gz *.dmg windows-x86_64 windows-aarch64 windows-x86 msi-template "${packer_template[@]}"
 
       - name: Publish unsigned app
+        if: ${{ !inputs.artifacts-only }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
+
+      - name: Archive unsigned app
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-unsigned-app-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
+          if-no-files-found: error
 
   build-rustdesk-android:
     needs: [generate-bridge]
@@ -1715,7 +1816,7 @@ jobs:
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1723,14 +1824,32 @@ jobs:
           files: |
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+      - name: Archive signed apk package
+        if: ${{ inputs.artifacts-only && (env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-signed-apk-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
+          if-no-files-found: error
+
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
+
+      - name: Archive unsigned apk package
+        if: ${{ inputs.artifacts-only && (env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-unsigned-apk-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
+          if-no-files-found: error
 
   build-rustdesk-android-universal:
     needs: [build-rustdesk-android]
@@ -1900,7 +2019,7 @@ jobs:
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1908,14 +2027,32 @@ jobs:
           files: |
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+      - name: Archive signed apk package
+        if: ${{ inputs.artifacts-only && (env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-signed-apk-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
+          if-no-files-found: error
+
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
+
+      - name: Archive unsigned apk package
+        if: ${{ inputs.artifacts-only && (env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-unsigned-apk-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
+          if-no-files-found: error
 
   build-rustdesk-linux:
     needs: [generate-bridge]
@@ -2290,7 +2427,7 @@ jobs:
         shell: bash
 
       - name: Publish debian/rpm package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -2298,6 +2435,16 @@ jobs:
           files: |
             rustdesk-*.deb
             rustdesk-*.rpm
+
+      - name: Archive debian/rpm package
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-debian-rpm-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            rustdesk-*.deb
+            rustdesk-*.rpm
+          if-no-files-found: error
 
       # x86_64 also uploads on a PR (upload-artifact false), where it is the only way to get at the
       # deb that was just built.
@@ -2348,13 +2495,22 @@ jobs:
         shell: bash
 
       - name: Publish archlinux package
-        if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             res/rustdesk-${{ env.VERSION }}*.zst
+
+      - name: Archive archlinux package
+        if: ${{ inputs.artifacts-only && (matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-archlinux-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            res/rustdesk-${{ env.VERSION }}*.zst
+          if-no-files-found: error
 
   build-rustdesk-linux-sciter:
     if: ${{ inputs.upload-artifact }}
@@ -2584,13 +2740,22 @@ jobs:
           done
 
       - name: Publish debian package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
+
+      - name: Archive debian package
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-debian-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
+          if-no-files-found: error
 
       - name: Upload deb
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2644,13 +2809,22 @@ jobs:
           cmp AppDir/AppRun appimage-build/AppRun/v2.0.0/AppRun-Release-${{ matrix.job.arch }}
 
       - name: Publish appimage package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ !inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage
+
+      - name: Archive appimage package
+        if: ${{ inputs.artifacts-only && (env.UPLOAD_ARTIFACT == 'true') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-appimage-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage
+          if-no-files-found: error
 
   build-flatpak:
     name: Build flatpak ${{ matrix.job.target }}${{ matrix.job.suffix }}
@@ -2730,12 +2904,22 @@ jobs:
             flatpak build-bundle ./repo rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.RustDesk
 
       - name: Publish flatpak package
+        if: ${{ !inputs.artifacts-only }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
             flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
+
+      - name: Archive flatpak package
+        if: ${{ inputs.artifacts-only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-flatpak-package-${{ github.job }}-${{ matrix.job.arch || matrix.job.target || matrix.arch || 'all' }}${{ matrix.job.suffix || '' }}
+          path: |
+            flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
+          if-no-files-found: error
 
   build-rustdesk-web:
     if: False
