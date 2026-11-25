@@ -21,6 +21,7 @@ import '../../models/shortcut_model.dart';
 import '../../common/shared_state.dart';
 import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
+import '../widgets/session_stats.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
 import 'macos_full_screen_focus_recovery.dart';
@@ -813,13 +814,26 @@ class _RemotePageState extends State<RemotePage>
             route.stream_type.value);
         final text =
             relay.isEmpty ? details : '${translate("Relay Server")}: $relay';
-        return Tooltip(
-          message: relay.isEmpty ? details : '$text\n$details',
-          child: Padding(
+        return Row(children: [
+          Expanded(child: Tooltip(
+            message: relay.isEmpty ? details : '$text\n$details',
+            child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Text(text, overflow: TextOverflow.ellipsis),
+            ),
+          )),
+          TextButton.icon(
+            icon: const Icon(Icons.speed, size: 16),
+            label: Text(translate('Show quality monitor')),
+            onPressed: () async {
+              await bind.sessionToggleOption(
+                  sessionId: sessionId, value: 'show-quality-monitor');
+              if (mounted) {
+                await _ffi.qualityMonitorModel.checkShowQualityMonitor(sessionId);
+              }
+            },
           ),
-        );
+        ]);
       }),
       body: Obx(() {
         final imageReady = _ffi.ffiModel.pi.isSet.isTrue &&
@@ -1027,9 +1041,8 @@ class _RemotePageState extends State<RemotePage>
     paints.add(
       Positioned(
         top: 10,
-        right: 10,
-        child: _buildRawTouchAndPointerRegion(
-            QualityMonitor(_ffi.qualityMonitorModel), null, null),
+        left: 10,
+        child: IgnorePointer(child: SessionStats(ffi: _ffi, peerId: widget.id)),
       ),
     );
     return Stack(

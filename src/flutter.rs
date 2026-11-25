@@ -719,6 +719,8 @@ impl InvokeUiSession for FlutterHandler {
         self.push_event(
             "update_quality_status",
             &[
+                ("elapsed_seconds", &status.elapsed_seconds.map_or(NULL, |v| v.to_string())),
+                ("video_kbps", &status.video_kbps.map_or(NULL, |v| format!("{v:.2}"))),
                 ("speed", &status.speed.map_or(NULL, |it| it)),
                 (
                     "fps",

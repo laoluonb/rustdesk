@@ -354,11 +354,13 @@ class FfiModel with ChangeNotifier {
       } else if (name == 'sync_platform_additions') {
         handlePlatformAdditions(evt, sessionId, peerId);
       } else if (name == 'connection_ready') {
+        parent.target?.qualityMonitorModel.resetSamples();
         setConnectionType(peerId, evt['secure'] == 'true',
             evt['direct'] == 'true', evt['stream_type'] ?? '',
             evt['relay_server'] ?? '');
         resetRestartReconnectState();
       } else if (name == 'connection_route_closed') {
+        parent.target?.qualityMonitorModel.resetSamples();
         _secure = null;
         _direct = null;
         cachedPeerData.relayServer = '';
@@ -3910,6 +3912,8 @@ class CursorModel with ChangeNotifier {
 }
 
 class QualityMonitorData {
+  int? elapsedSeconds;
+  double? videoKbps;
   String? speed;
   String? fps;
   String? delay;
@@ -3923,7 +3927,12 @@ class QualityMonitorModel with ChangeNotifier {
 
   QualityMonitorModel(this.parent);
   var _show = false;
-  final _data = QualityMonitorData();
+  var _data = QualityMonitorData();
+
+  void resetSamples() {
+    _data = QualityMonitorData();
+    notifyListeners();
+  }
 
   bool get show => _show;
   QualityMonitorData get data => _data;
@@ -3952,6 +3961,10 @@ class QualityMonitorModel with ChangeNotifier {
 
   updateQualityStatus(Map<String, dynamic> evt) {
     try {
+      final seconds = int.tryParse(evt['elapsed_seconds']?.toString() ?? '');
+      final rate = double.tryParse(evt['video_kbps']?.toString() ?? '');
+      if (seconds != null) _data.elapsedSeconds = seconds;
+      if (rate != null) _data.videoKbps = rate;
       if (evt.containsKey('speed') && (evt['speed'] as String).isNotEmpty) {
         _data.speed = evt['speed'];
       }

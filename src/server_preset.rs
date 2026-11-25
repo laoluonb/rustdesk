@@ -16,6 +16,12 @@ pub fn is_home(host: &str) -> bool {
 
 pub fn initialize() {
     *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = HOST.to_owned();
+    #[cfg(all(feature = "flutter", not(any(target_os = "ios", target_os = "android"))))]
+    config::DEFAULT_DISPLAY_SETTINGS
+        .write()
+        .unwrap()
+        .entry("show_quality_monitor".to_owned())
+        .or_insert_with(|| "Y".to_owned());
 }
 
 #[cfg(test)]

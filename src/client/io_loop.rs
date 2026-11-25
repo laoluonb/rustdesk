@@ -94,6 +94,7 @@ pub struct Remote<T: InvokeUiSession> {
     #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
     client_conn_id: i32, // used for file clipboard
     data_count: Arc<AtomicUsize>,
+    video_bytes: usize,
     video_format: CodecFormat,
     elevation_requested: bool,
     peer_info: ParsedPeerInfo,
@@ -146,6 +147,7 @@ impl<T: InvokeUiSession> Remote<T> {
             #[cfg(any(target_os = "windows", feature = "unix-file-copy-paste"))]
             client_conn_id: 0,
             data_count: Arc::new(AtomicUsize::new(0)),
+            video_bytes: 0,
             video_format: CodecFormat::Unknown,
             stop_voice_call_sender: None,
             voice_call_request_timestamp: None,
@@ -290,6 +292,7 @@ impl<T: InvokeUiSession> Remote<T> {
                 let mut status_timer =
                     crate::rustdesk_interval(time::interval(Duration::new(1, 0)));
                 let mut fps_instant = Instant::now();
+                let connected_at = fps_instant;
 
                 let _keep_it = client::hc_connection(feedback, rendezvous_server, token).await;
                 let mut last_recv_time = Instant::now();
@@ -423,6 +426,9 @@ impl<T: InvokeUiSession> Remote<T> {
                                 Some(self.video_format.clone())
                             };
                             self.handler.update_quality_status(QualityStatus {
+                                elapsed_seconds: Some(connected_at.elapsed().as_secs()),
+                                video_kbps: Some(std::mem::take(&mut self.video_bytes) as f64
+                                    * 8.0 / elapsed as f64),
                                 speed: Some(speed),
                                 fps,
                                 chroma,
@@ -1707,6 +1713,8 @@ impl<T: InvokeUiSession> Remote<T> {
         if let Ok(msg_in) = Message::parse_from_bytes(&data) {
             match msg_in.union {
                 Some(message::Union::VideoFrame(vf)) => {
+                    // Size of received video messages only; exclude clipboard, files and audio.
+                    self.video_bytes = self.video_bytes.saturating_add(data.len());
                     if !self.first_frame {
                         self.first_frame = true;
                         self.handler.close_success();

@@ -5,6 +5,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 pub struct QualityStatus {
+    pub elapsed_seconds: Option<u64>,
+    pub video_kbps: Option<f64>,
     pub speed: Option<String>,
     pub fps: HashMap<usize, i32>,
     pub delay: Option<i32>,
