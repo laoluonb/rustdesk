@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: New release tag, for example v1.5.5
+        description: New release tag, for example v1.5.6
         required: true
         type: string
 
@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v1\.5\.5$ ]]
+          [[ "$RELEASE_TAG" =~ ^v1\.5\.6$ ]]
           mkdir release-assets
           while IFS= read -r -d '' file; do
             name="${file##*/}"
@@ -61,8 +61,8 @@ jobs:
             -o -name '*.AppImage' -o -name '*.flatpak' -o -name '*.pkg.tar.zst' \
             -o -name 'rustdesk.sbom.json' \) -print0)
           cd release-assets
-          for package in rustdesk-1.5.5-{x86_64,aarch64}.{msi,exe,dmg,deb} \
-            rustdesk-1.5.5-{armv7,x86_64,aarch64,universal}.apk rustdesk-ios-unsigned.ipa; do
+          for package in rustdesk-1.5.6-{x86_64,aarch64}.{msi,exe,dmg,deb} \
+            rustdesk-1.5.6-{armv7,x86_64,aarch64,universal}.apk rustdesk-ios-unsigned.ipa; do
             test -s "$package"
           done
           sha256sum -- * > SHA256SUMS.txt
@@ -76,6 +76,9 @@ jobs:
             jq -e '.isDraft' existing-release.json
           else
             cat > release-notes.md <<'NOTES'
+          - 「我的设备」卡片菜单新增重命名，可保存本机别名；卡片及新连接标签显示别名与设备 ID，刷新列表和重启后仍保留。本机别名不会修改其他用户的设备备注。
+          - 修正桌面「适应窗口」仍遮挡底部的问题：按远程画面的实际可用区域缩放，扣除标签栏、状态栏占用；窗口调整大小后重新计算。
+          - 桌面新安装默认采用适应窗口、平衡画质、自动编码，开启远程光标、光标缩放、质量监测、显示器工具栏、文件复制粘贴、剪贴板跨会话同步、TCP/UDP/IPv6 直连和会话期间保持唤醒；工具栏默认折叠。已保存的用户设置优先，不强制覆盖。
           - 桌面远控画面左上角可显示半透明质量面板：实际连接方式、中继地址（如有）、连接时长、帧率、接收到的视频码率、往返延迟、分辨率与编码。面板不拦截鼠标。底栏「显示质量监测」可随时切换。
           - Flutter 桌面和移动端连接首页换用冰蓝配色。点击右上角的壁纸按钮，可切换 YCY 随机插画、纯色背景或本机图片；选择保存在当前设备。壁纸加载失败时仍可使用连接功能。
           - 默认使用 `rustdesk.laoluowl.cn`，自建服务器不可用时不会自动切到 RustDesk 官方 ID 服务器。仍可手动配置其他自建服务器。

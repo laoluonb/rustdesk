@@ -3338,6 +3338,7 @@ Widget buildErrorBanner(BuildContext context,
 }
 
 String getDesktopTabLabel(String peerId, String alias) {
+  if (alias.trim().isNotEmpty) return '${alias.trim()} · $peerId';
   String label = alias.isEmpty ? peerId : alias;
   try {
     String peer = bind.mainGetPeerSync(id: peerId);

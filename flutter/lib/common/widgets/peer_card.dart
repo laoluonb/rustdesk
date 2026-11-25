@@ -189,7 +189,9 @@ class _PeerCardState extends State<_PeerCard>
                         getOnline(isPortrait ? 4 : 8, peer.online),
                         Expanded(
                             child: Text(
-                          peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
+                          peer.alias.isEmpty
+                              ? formatID(peer.id)
+                              : '${peer.alias} · ${formatID(peer.id)}',
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         )),
@@ -371,7 +373,9 @@ class _PeerCardState extends State<_PeerCard>
                         getOnline(8, peer.online),
                         Expanded(
                             child: Text(
-                          peer.alias.isEmpty ? formatID(peer.id) : peer.alias,
+                          peer.alias.isEmpty
+                              ? formatID(peer.id)
+                              : '${peer.alias} · ${formatID(peer.id)}',
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall,
                         )),
@@ -1344,7 +1348,7 @@ class MyGroupPeerCard extends BasePeerCard {
       menuItems.add(_createShortCutAction(peer.id));
     }
     // menuItems.add(MenuEntryDivider());
-    // menuItems.add(_renameAction(peer.id));
+    menuItems.add(_renameAction(peer.id));
     // if (await bind.mainPeerHasPassword(id: peer.id)) {
     //   menuItems.add(_unrememberPasswordAction(peer.id));
     // }
@@ -1356,7 +1360,7 @@ class MyGroupPeerCard extends BasePeerCard {
 
   @protected
   @override
-  void _update() => gFFI.groupModel.pull();
+  void _update() => gFFI.groupModel.refreshLocalAliases();
 }
 
 void _rdpDialog(String id) async {

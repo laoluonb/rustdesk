@@ -261,6 +261,7 @@ class GroupModel {
               for (final p in data) {
                 final peerPayload = PeerPayload.fromJson(p);
                 final peer = PeerPayload.toPeer(peerPayload);
+                peer.alias = bind.mainGetPeerOptionSync(id: peer.id, key: 'alias');
                 int index = tmpPeers.indexWhere((e) => e.id == peer.id);
                 if (index < 0) {
                   tmpPeers.add(peer);
@@ -333,7 +334,10 @@ class GroupModel {
       }
       if (data['peers'] is List) {
         for (final peer in data['peers']) {
-          peers.add(Peer.fromJson(peer));
+          final cachedPeer = Peer.fromJson(peer);
+          cachedPeer.alias =
+              bind.mainGetPeerOptionSync(id: cachedPeer.id, key: 'alias');
+          peers.add(cachedPeer);
         }
         _callbackPeerUpdate();
       }
@@ -350,6 +354,13 @@ class GroupModel {
     peers.clear();
     selectedAccessibleItemName.value = '';
     await bind.mainClearGroup();
+  }
+
+  void refreshLocalAliases() {
+    for (final peer in peers) {
+      peer.alias = bind.mainGetPeerOptionSync(id: peer.id, key: 'alias');
+    }
+    platformFFI.tryHandle({'name': LoadEvent.group});
   }
 
   void _callbackPeerUpdate() {

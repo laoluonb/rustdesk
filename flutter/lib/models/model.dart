@@ -2358,6 +2358,12 @@ class CanvasModel with ChangeNotifier {
       isDesktop ? windowBorderWidth + kDragToResizeAreaPadding.bottom : 0;
 
   Size getSize() {
+    if (isDesktop || isWebDesktop) {
+      final viewport = parent.target?.inputModel.imageWidgetSize;
+      if (viewport != null && viewport.isFinite && !viewport.isEmpty) {
+        return viewport;
+      }
+    }
     final mediaData = MediaQueryData.fromView(ui.window);
     final size = mediaData.size;
     // If minimized, w or h may be negative here.
