@@ -327,7 +327,7 @@ class _ConnectionPageState extends State<ConnectionPage>
               children: [
                 Flexible(child: _buildRemoteIDTextField(context)),
               ],
-            ).marginOnly(top: 22),
+            ).marginOnly(top: 4),
             SizedBox(height: 12),
             Divider().paddingOnly(right: 12),
             Expanded(child: PeerTabPage()),
@@ -394,8 +394,11 @@ class _ConnectionPageState extends State<ConnectionPage>
       width: 320 + 20 * 2,
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       decoration: BoxDecoration(
-          borderRadius: const BorderRadius.all(Radius.circular(13)),
-          border: Border.all(color: Theme.of(context).colorScheme.background)),
+          color: Theme.of(context).cardColor.withOpacity(.94),
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
+          border: Border.all(color: const Color(0x55678DD3)),
+          boxShadow: const [BoxShadow(color: Color(0x14759ACE),
+              blurRadius: 14, offset: Offset(0, 4))]),
       child: Ink(
         child: Column(
           children: [
@@ -568,6 +571,11 @@ class _ConnectionPageState extends State<ConnectionPage>
                 SizedBox(
                   height: 28.0,
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff4166a8),
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                    ),
                     onPressed: () {
                       onConnect();
                     },

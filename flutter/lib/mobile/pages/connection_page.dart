@@ -1,3 +1,4 @@
+import 'package:flutter_hbb/common/widgets/home_wallpaper.dart';
 import 'dart:async';
 
 import 'package:auto_size_text_field/auto_size_text_field.dart';
@@ -80,7 +81,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
   @override
   Widget build(BuildContext context) {
     Provider.of<FfiModel>(context);
-    return CustomScrollView(
+    return HomeWallpaper(child: CustomScrollView(
       slivers: [
         SliverList(
             delegate: SliverChildListDelegate([
@@ -93,7 +94,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
           child: PeerTabPage(),
         )
       ],
-    ).marginOnly(top: 2, left: 10, right: 10);
+    ).marginOnly(top: 2, left: 10, right: 10));
   }
 
   /// Callback for the connect button.
