@@ -367,6 +367,16 @@ fn tcp_punch_allowed() -> bool {
             || crate::get_webrtc_enabled())
 }
 
+type SessionTransport = (
+    Stream,
+    bool,
+    Option<Vec<u8>>,
+    Option<KcpStream>,
+    &'static str,
+    Option<String>,
+);
+type RendezvousResult = (SessionTransport, (i32, String), bool);
+
 impl Client {
     const CLIENT_CLIPBOARD_NAME: &'static str = "client-clipboard";
 
@@ -398,17 +408,7 @@ impl Client {
         token: &str,
         conn_type: ConnType,
         interface: impl Interface,
-    ) -> ResultType<(
-        (
-            Stream,
-            bool,
-            Option<Vec<u8>>,
-            Option<KcpStream>,
-            &'static str,
-            Option<String>,
-        ),
-        (i32, String),
-    )> {
+    ) -> ResultType<(SessionTransport, (i32, String))> {
         debug_assert!(peer == interface.get_id());
         interface.update_direct(None);
         interface.update_received(false);
@@ -444,18 +444,7 @@ impl Client {
         token: &str,
         conn_type: ConnType,
         interface: impl Interface,
-    ) -> ResultType<(
-        (
-            Stream,
-            bool,
-            Option<Vec<u8>>,
-            Option<KcpStream>,
-            &'static str,
-            Option<String>,
-        ),
-        (i32, String),
-        bool,
-    )> {
+    ) -> ResultType<RendezvousResult> {
         if config::is_incoming_only() && !is_switch_sides_back(conn_type, &interface).await {
             bail!("Incoming only mode");
         }
@@ -837,17 +826,7 @@ impl Client {
         mut rendezvous_server: String,
         servers: Vec<String>,
         contained: bool,
-    ) -> ResultType<(
-        (
-            Stream,
-            bool,
-            Option<Vec<u8>>,
-            Option<KcpStream>,
-            &'static str,
-        ),
-        (i32, String),
-        bool,
-    )> {
+    ) -> ResultType<RendezvousResult> {
         // Wrap the offerer so any early return below (?/bail) or cancellation of this future by
         // the outer select_ok closes its pc instead of leaking it in SESSIONS. Disarmed via
         // into_inner() once the stream is adopted into a connection attempt.
@@ -1449,14 +1428,7 @@ impl Client {
         webrtc_bridge_stop: Option<oneshot::Sender<()>>,
         allow_tcp_punch: bool,
         punch_type: &str,
-    ) -> ResultType<(
-        Stream,
-        bool,
-        Option<Vec<u8>>,
-        Option<KcpStream>,
-        &'static str,
-        Option<String>,
-    )> {
+    ) -> ResultType<SessionTransport> {
         // Guard the offerer for the whole of connect(): any early return — cancellation during the
         // awaits below, the relay override, or a secure_connection failure — closes its pc via the
         // guard's drop. Disarmed only once WebRTC is the confirmed winning, secured transport.
