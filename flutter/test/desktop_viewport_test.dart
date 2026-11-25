@@ -11,6 +11,11 @@ class _Input implements InputModel {
   Size? imageWidgetSize;
 
   @override
+  void updateImageWidgetSize(Size size) {
+    imageWidgetSize = size;
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -32,7 +37,7 @@ void main() {
     final session = _Session();
     final canvas = CanvasModel(WeakReference<FFI>(session));
     for (final viewport in [const Size(1280, 650), const Size(900, 500)]) {
-      session.inputModel.imageWidgetSize = viewport;
+      session.inputModel.updateImageWidgetSize(viewport);
       final size = canvas.getSize();
       expect(size, viewport);
       final fit = ViewStyle(
