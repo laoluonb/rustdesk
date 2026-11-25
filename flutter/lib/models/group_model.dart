@@ -261,7 +261,7 @@ class GroupModel {
               for (final p in data) {
                 final peerPayload = PeerPayload.fromJson(p);
                 final peer = PeerPayload.toPeer(peerPayload);
-                peer.alias = bind.mainGetPeerOptionSync(id: peer.id, key: 'alias');
+                peer.alias = _localAlias(peer.id);
                 int index = tmpPeers.indexWhere((e) => e.id == peer.id);
                 if (index < 0) {
                   tmpPeers.add(peer);
@@ -335,8 +335,7 @@ class GroupModel {
       if (data['peers'] is List) {
         for (final peer in data['peers']) {
           final cachedPeer = Peer.fromJson(peer);
-          cachedPeer.alias =
-              bind.mainGetPeerOptionSync(id: cachedPeer.id, key: 'alias');
+          cachedPeer.alias = _localAlias(cachedPeer.id);
           peers.add(cachedPeer);
         }
         _callbackPeerUpdate();
@@ -356,9 +355,17 @@ class GroupModel {
     await bind.mainClearGroup();
   }
 
+  String _localAlias(String id) {
+    // A device that has not connected yet has no durable recent-peer record.
+    final alias = bind.mainGetLocalOption(key: 'laoluowl-device-alias-$id');
+    return alias.isNotEmpty
+        ? alias
+        : bind.mainGetPeerOptionSync(id: id, key: 'alias');
+  }
+
   void refreshLocalAliases() {
     for (final peer in peers) {
-      peer.alias = bind.mainGetPeerOptionSync(id: peer.id, key: 'alias');
+      peer.alias = _localAlias(peer.id);
     }
     platformFFI.tryHandle({'name': LoadEvent.group});
   }

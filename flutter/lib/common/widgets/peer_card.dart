@@ -881,6 +881,10 @@ abstract class BasePeerCard extends StatelessWidget {
                   await gFFI.abModel.changeAlias(id: id, alias: newName);
                   await bind.mainSetPeerAlias(id: id, alias: newName);
                 } else {
+                  if (tab == PeerTabIndex.group) {
+                    await bind.mainSetLocalOption(
+                        key: 'laoluowl-device-alias-$id', value: newName);
+                  }
                   await bind.mainSetPeerAlias(id: id, alias: newName);
                   showToast(translate('Successful'));
                   _update();
@@ -1338,6 +1342,9 @@ class MyGroupPeerCard extends BasePeerCard {
             key: key);
 
   @override
+  Future<String> _getAlias(String id) async => peer.alias;
+
+  @override
   Future<List<MenuEntryBase<String>>> _buildMenuItems(
       BuildContext context) async {
     final menuItems = await _buildConnectionMenuItems(context);
@@ -1577,6 +1584,9 @@ void connectInPeerTab(BuildContext context, Peer peer, PeerTabIndex tab,
     String loginMethod = ''}) async {
   var password = '';
   bool isSharedPassword = false;
+  if (tab == PeerTabIndex.group && peer.alias.isNotEmpty) {
+    await bind.mainSetPeerAlias(id: peer.id, alias: peer.alias);
+  }
   if (tab == PeerTabIndex.ab) {
     // If recent peer's alias is empty, set it to ab's alias
     // Because the platform is not set, it may not take effect, but it is more important not to display if the connection is not successful
