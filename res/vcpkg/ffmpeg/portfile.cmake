@@ -33,6 +33,7 @@ vcpkg_from_github(
     patch/0013-fix-qsv-encode-timeouts.patch
     patch/0014-fix-qsv-encode-buffer.patch
     patch/0015-fix-hybrid-mp4-finalization.patch
+    patch/0016-amf-low-delay-preset.patch
 )
 
 if(SOURCE_PATH MATCHES " ")

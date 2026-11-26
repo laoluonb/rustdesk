@@ -819,8 +819,11 @@ fn run(vs: VideoService) -> ResultType<()> {
 
         let time = now - start;
         let ms = (time.as_secs() * 1000 + time.subsec_millis() as u64) as i64;
+        let capture_begin = Instant::now();
+        let mut frame_timings = None;
         let res = match c.frame(spf) {
             Ok(frame) => {
+                let capture_elapsed = capture_begin.elapsed();
                 repeat_encode_counter = 0;
                 if frame.valid() {
                     let screenshot_key = (vs.source, display_idx);
@@ -870,6 +873,7 @@ fn run(vs: VideoService) -> ResultType<()> {
                         }
                     }
 
+                    let encode_begin = Instant::now();
                     let frame = frame.to(encoder.yuvfmt(), &mut yuv, &mut mid_data)?;
                     static_refresh.on_frame(&frame);
                     let result = handle_one_frame(
@@ -885,6 +889,7 @@ fn run(vs: VideoService) -> ResultType<()> {
                         capture_width,
                         capture_height,
                     )?;
+                    frame_timings = Some((capture_elapsed, encode_begin.elapsed()));
                     static_refresh.on_frame_encoded(&result);
                     frame_controller.set_send(now, result.send_conn_ids);
                     send_counter += 1;
@@ -1025,6 +1030,16 @@ fn run(vs: VideoService) -> ResultType<()> {
         }
         DISPLAY_CONN_IDS.lock().unwrap().remove(&display_idx);
 
+        if let Some((capture_elapsed, encode_elapsed)) = frame_timings {
+            hbb_common::throttled_log!(
+                Duration::from_secs(15), info,
+                "Frame timings: display={}, capture_ms={:.2}, convert_encode_ms={:.2}, send_wait_ms={:.2}, work_ms={:.2}, budget_ms={:.2}",
+                sp.name(), capture_elapsed.as_secs_f64() * 1000.0,
+                encode_elapsed.as_secs_f64() * 1000.0,
+                wait_begin.elapsed().as_secs_f64() * 1000.0,
+                now.elapsed().as_secs_f64() * 1000.0, spf.as_secs_f64() * 1000.0
+            );
+        }
         let elapsed = now.elapsed();
         // may need to enable frame(timeout)
         log::trace!("{:?} {:?}", time::Instant::now(), elapsed);

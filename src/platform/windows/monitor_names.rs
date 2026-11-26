@@ -1,6 +1,24 @@
 use std::{collections::HashMap, mem, ptr};
 use winapi::um::{wingdi::*, winuser::*};
 
+#[link(name = "user32")]
+extern "system" {
+    fn GetDisplayConfigBufferSizes(
+        flags: u32,
+        numPathArrayElements: *mut u32,
+        numModeInfoArrayElements: *mut u32,
+    ) -> i32;
+    fn QueryDisplayConfig(
+        flags: u32,
+        numPathArrayElements: *mut u32,
+        pathArray: *mut DISPLAYCONFIG_PATH_INFO,
+        numModeInfoArrayElements: *mut u32,
+        modeInfoArray: *mut DISPLAYCONFIG_MODE_INFO,
+        currentTopologyId: *mut DISPLAYCONFIG_TOPOLOGY_ID,
+    ) -> i32;
+    fn DisplayConfigGetDeviceInfo(requestPacket: *mut DISPLAYCONFIG_DEVICE_INFO_HEADER) -> i32;
+}
+
 pub(crate) fn monitor_friendly_names() -> HashMap<String, String> {
     let mut names = HashMap::new();
     unsafe {

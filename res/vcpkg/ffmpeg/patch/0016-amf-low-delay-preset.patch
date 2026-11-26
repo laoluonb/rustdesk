@@ -1,0 +1,38 @@
+--- a/libavcodec/amfenc_h264.c
++++ b/libavcodec/amfenc_h264.c
+@@ -219,6 +219,16 @@
+     if ((ret = ff_amf_encode_init(avctx)) != 0)
+         return ret;
+ 
++    // Remote desktop requests synchronous, low-delay encoding. AMF usage is
++    // independent of AV_CODEC_FLAG_LOW_DELAY; do not leave it at driver defaults.
++    if (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) {
++        if (ctx->usage == -1)
++            ctx->usage = AMF_VIDEO_ENCODER_USAGE_ULTRA_LOW_LATENCY;
++        if (ctx->quality == -1)
++            ctx->quality = AMF_VIDEO_ENCODER_QUALITY_PRESET_SPEED;
++        av_log(avctx, AV_LOG_INFO, "AMF realtime: usage=%d quality=%d\n", ctx->usage, ctx->quality);
++    }
++
+     // init static parameters
+     if (ctx->usage != -1) {
+         AMF_ASSIGN_PROPERTY_INT64(res, ctx->encoder, AMF_VIDEO_ENCODER_USAGE, ctx->usage);
+--- a/libavcodec/amfenc_hevc.c
++++ b/libavcodec/amfenc_hevc.c
+@@ -184,6 +184,16 @@
+ 
+     if ((ret = ff_amf_encode_init(avctx)) < 0)
+         return ret;
++
++    // Remote desktop requests synchronous, low-delay encoding. AMF usage is
++    // independent of AV_CODEC_FLAG_LOW_DELAY; do not leave it at driver defaults.
++    if (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) {
++        if (ctx->usage == -1)
++            ctx->usage = AMF_VIDEO_ENCODER_HEVC_USAGE_ULTRA_LOW_LATENCY;
++        if (ctx->quality == -1)
++            ctx->quality = AMF_VIDEO_ENCODER_HEVC_QUALITY_PRESET_SPEED;
++        av_log(avctx, AV_LOG_INFO, "AMF realtime: usage=%d quality=%d\n", ctx->usage, ctx->quality);
++    }
+ 
+     // init static parameters
+     if (ctx->usage != -1) {
