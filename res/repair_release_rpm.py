@@ -65,7 +65,7 @@ for arch in ('x86_64', 'aarch64'):
                 if label == 'Provides' and value.startswith(('rustdesk =', 'rustdesk(')):
                     value = value.replace('1.5.7-0', '1.5.8-0')
                 header += f'{label}: {value}\n'
-        files_and_scripts = '%files' + source.split('%files', 1)[1]
+        files_and_scripts = '%files\n/usr/lib/.build-id\n' + source.split('%files', 1)[1]
         spec = folder / 'repaired.spec'
         spec.write_text(header + '\n%description\nThe best open-source remote desktop client software, written in Rust.\n%prep\n%build\n%install\nmkdir -p "%{buildroot}"\ncp -a "' + str(payload) + '/." "%{buildroot}/"\n' + files_and_scripts)
         subprocess.run(['rpmbuild', '-bb', str(spec), '--target', arch, '--define', '_topdir ' + str(folder / 'build'), '--define', '__os_install_post %{nil}', '--define', '_build_id_links none', '--define', 'debug_package %{nil}'], check=True)
