@@ -1,5 +1,6 @@
 [Desktop Entry]
-Name=RustDesk
+Name=BlueBloom Remote
+Name[zh_CN]=蓝花远控
 NoDisplay=true
 MimeType=x-scheme-handler/rustdesk;
 TryExec=rustdesk

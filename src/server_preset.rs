@@ -4,6 +4,7 @@ pub const HOST: &str = "rustdesk.laoluowl.cn";
 pub const API: &str = "https://rustdesk.laoluowl.cn";
 pub const KEY: &str = "SYktxVV+CR+lrzdINS9jiTC8bicji7yHzJfmRnsrZgo=";
 pub const ID_ADDRESS: &str = "rustdesk.laoluowl.cn:21116";
+pub const CLIENT_MANAGED_UPDATES: bool = true;
 
 pub fn is_automatic() -> bool {
     config::EXE_RENDEZVOUS_SERVER.read().unwrap().is_empty()

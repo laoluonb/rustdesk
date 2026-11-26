@@ -1,3 +1,5 @@
+import 'package:flutter_hbb/bluebloom/brand.dart';
+import 'package:flutter_hbb/bluebloom/update_widgets.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -1057,8 +1059,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             tiles: enhancementsTiles,
           ),
         SettingsSection(
-          title: Text(translate("About")),
+          title: Text(blueBloomName),
           tiles: [
+            CustomSettingsTile(child: const Padding(
+              padding: EdgeInsets.all(16), child: BlueBloomUpdateButton())),
             SettingsTile(
                 onPressed: (context) async {
                   await launchUrl(Uri.parse(url));
@@ -1207,9 +1211,11 @@ void showThemeSettings(OverlayDialogManager dialogManager) async {
 void showAbout(OverlayDialogManager dialogManager) {
   dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
-      title: Text(translate('About RustDesk')),
+      title: const Text(blueBloomName),
       content: Wrap(direction: Axis.vertical, spacing: 12, children: [
         Text('Version: $version'),
+        const Text('基于 RustDesk · 发行者 laoluonb'),
+        const BlueBloomUpdateButton(),
         InkWell(
             onTap: () async {
               const url = 'https://rustdesk.com/';

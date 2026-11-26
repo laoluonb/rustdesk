@@ -1,3 +1,5 @@
+import 'bluebloom/brand.dart';
+import 'bluebloom/update_widgets.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -3061,7 +3063,7 @@ int versionCmp(String v1, String v2) {
 }
 
 String getWindowName({WindowType? overrideType}) {
-  final name = bind.mainGetAppNameSync();
+  const name = blueBloomName;
   switch (overrideType ?? kWindowType) {
     case WindowType.Main:
       return name;
@@ -4107,19 +4109,8 @@ void earlyAssert() {
 }
 
 void checkUpdate() {
-  if (!isWeb) {
-    if (!bind.isCustomClient()) {
-      platformFFI.registerEventHandler(
-          kCheckSoftwareUpdateFinish, kCheckSoftwareUpdateFinish,
-          (Map<String, dynamic> evt) async {
-        if (evt['url'] is String) {
-          stateGlobal.updateUrl.value = evt['url'];
-        }
-      });
-      Timer(const Duration(seconds: 1), () async {
-        bind.mainGetSoftwareUpdateUrl();
-      });
-    }
+  if (!isWeb && mainGetLocalBoolOptionSync(kOptionEnableCheckUpdate)) {
+    Timer(const Duration(seconds: 1), checkBlueBloomUpdateOnStartup);
   }
 }
 

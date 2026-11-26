@@ -1,5 +1,6 @@
 [Desktop Entry]
-Name=RustDesk
+Name=BlueBloom Remote
+Name[zh_CN]=蓝花远控
 GenericName=Remote Desktop
 Comment=Remote Desktop
 Exec=rustdesk %u

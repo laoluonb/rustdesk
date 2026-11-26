@@ -4,6 +4,9 @@ fn main() {
         use std::io::Write;
         let mut res = winres::WindowsResource::new();
         res.set_icon("../../res/icon.ico")
+            .set("CompanyName", "laoluonb")
+            .set("ProductName", "BlueBloom Remote")
+            .set("FileDescription", "BlueBloom Remote (based on RustDesk)")
             .set_language(winapi::um::winnt::MAKELANGID(
                 winapi::um::winnt::LANG_ENGLISH,
                 winapi::um::winnt::SUBLANG_ENGLISH_US,

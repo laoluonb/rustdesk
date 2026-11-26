@@ -1,3 +1,5 @@
+import 'package:flutter_hbb/bluebloom/brand.dart';
+import 'package:flutter_hbb/bluebloom/update_widgets.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -524,8 +526,6 @@ class _GeneralState extends State<_General> {
   Widget other() {
     final incomingOnly = bind.isIncomingOnly();
     final outgoingOnly = bind.isOutgoingOnly();
-    final showAutoUpdate = (isWindows && bind.mainIsInstalled()) ||
-    (isMacOS && bind.mainIsInstalled() && bind.mainIsInstalledDaemon(prompt: false) && !bind.isCustomClient());
     final children = <Widget>[
       if (!isWeb && !incomingOnly)
         _OptionCheckBox(context, 'Confirm before closing multiple tabs',
@@ -600,13 +600,7 @@ class _GeneralState extends State<_General> {
           kOptionEnableCheckUpdate,
           isServer: false,
         ),
-      if (showAutoUpdate)
-        _OptionCheckBox(
-          context,
-          'Auto update',
-          kOptionAllowAutoUpdate,
-          isServer: true,
-        ),
+      const BlueBloomUpdateButton(),
       if (isWindows && !outgoingOnly)
         _OptionCheckBox(
           context,
@@ -2595,7 +2589,7 @@ class _AboutState extends State<_About> {
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: translate('About RustDesk'), children: [
+        child: _Card(title: blueBloomName, children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2605,6 +2599,8 @@ class _AboutState extends State<_About> {
               SelectionArea(
                   child: Text('${translate('Version')}: $version')
                       .marginSymmetric(vertical: 4.0)),
+              const Text('发行者：$blueBloomPublisher · 基于 RustDesk 开源项目'),
+              const BlueBloomUpdateButton(),
               SelectionArea(
                   child: Text('${translate('Build Date')}: $buildDate')
                       .marginSymmetric(vertical: 4.0)),

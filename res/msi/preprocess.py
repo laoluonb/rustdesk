@@ -93,7 +93,7 @@ def make_parser():
         "-m",
         "--manufacturer",
         type=str,
-        default="Purslane Tech Pte. Ltd.",
+        default="laoluonb",
         help="The app manufacturer.",
     )
     return parser
@@ -243,6 +243,7 @@ def put_app_exe_on_media2():
 
 def gen_pre_vars(args, dist_dir):
     def func(lines, index_start):
+        display_name = "BlueBloom Remote" if args.app_name == "RustDesk" else args.app_name
         upgrade_code = uuid.uuid5(uuid.NAMESPACE_OID, app_name + ".exe")
 
         indent = g_indent_unit * 1
@@ -250,7 +251,8 @@ def gen_pre_vars(args, dist_dir):
             f'{indent}<?define Version="{g_version}" ?>\n',
             f'{indent}<?define Manufacturer="{args.manufacturer}" ?>\n',
             f'{indent}<?define Product="{args.app_name}" ?>\n',
-            f'{indent}<?define Description="{args.app_name} Installer" ?>\n',
+            f'{indent}<?define DisplayProduct="{display_name}" ?>\n',
+            f'{indent}<?define Description="{display_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
             f'{indent}<?define RegKeyInstall="$(var.RegKeyRoot)\\Install" ?>\n',
@@ -568,4 +570,4 @@ if __name__ == "__main__":
     if not gen_custom_dialog_bitmaps():
         sys.exit(-1)
 
-    replace_app_name_in_langs(args.app_name)
+    replace_app_name_in_langs("BlueBloom Remote" if args.app_name == "RustDesk" else args.app_name)
