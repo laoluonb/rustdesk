@@ -641,6 +641,16 @@ impl<T: InvokeUiSession> Session<T> {
     }
 
     pub fn set_option(&self, k: String, mut v: String) {
+        if k == base::config::keys::OPTION_BLUEBLOOM_BITRATE {
+            let Some(kbps) = v.parse::<i32>().ok().filter(|v| *v == 0 || (500..=100_000).contains(v)) else { return; };
+            self.lc.write().unwrap().set_option(k, if kbps == 0 { String::new() } else { v });
+            let mut misc = Misc::new();
+            misc.set_option(OptionMessage { bluebloom_bitrate_kbps: if kbps == 0 { -1 } else { kbps }, ..Default::default() });
+            let mut msg = Message::new();
+            msg.set_misc(misc);
+            self.send(Data::Message(msg));
+            return;
+        }
         let mut lc = self.lc.write().unwrap();
         if k.eq("remote_dir") {
             v = lc.get_all_remote_dir(v);

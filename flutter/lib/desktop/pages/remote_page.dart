@@ -22,6 +22,7 @@ import '../../common/shared_state.dart';
 import '../../utils/image.dart';
 import '../widgets/remote_toolbar.dart';
 import '../widgets/session_stats.dart';
+import '../../bluebloom/session_presentation.dart';
 import '../widgets/kb_layout_type_chooser.dart';
 import '../widgets/tabbar_widget.dart';
 import 'macos_full_screen_focus_recovery.dart';
@@ -812,8 +813,9 @@ class _RemotePageState extends State<RemotePage>
             route.secure.value == ConnectionType.strSecure,
             route.direct.value == ConnectionType.strDirect,
             route.stream_type.value);
-        final text =
-            relay.isEmpty ? details : '${translate("Relay Server")}: $relay';
+        final routeLabel = sessionRouteLabel(route.stream_type.value,
+            route.direct.value == ConnectionType.strDirect);
+        final text = relay.isEmpty ? routeLabel : '$routeLabel · ${translate("Relay Server")}: $relay';
         return Row(children: [
           Expanded(child: Tooltip(
             message: relay.isEmpty ? details : '$text\n$details',

@@ -262,6 +262,7 @@ impl UserDelay {
 struct UserData {
     auto_adjust_fps: Option<u32>, // reserve for compatibility
     custom_fps: Option<u32>,
+    bitrate_kbps: Option<u32>,
     quality: Option<(i64, Quality)>, // (time, quality)
     delay: UserDelay,
     record: bool,
@@ -412,6 +413,18 @@ impl VideoQoS {
         // The stream follows the remaining viewers at once; a departed viewer's
         // start-up guard left with its entry.
         self.adjust_fps();
+    }
+
+    pub fn user_bitrate(&mut self, id: i32, kbps: i32) {
+        if kbps != -1 && !(500..=100_000).contains(&kbps) { return; }
+        if let Some(user) = self.users.get_mut(&id) {
+            user.bitrate_kbps = (kbps > 0).then_some(kbps as u32);
+        }
+    }
+
+    // A shared encoder follows the lowest explicit target among its viewers.
+    pub fn requested_bitrate(&self) -> Option<u32> {
+        self.users.values().filter_map(|u| u.bitrate_kbps).min()
     }
 
     pub fn user_custom_fps(&mut self, id: i32, fps: u32) {
@@ -884,6 +897,23 @@ impl RttCalculator {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn manual_bitrate_restores_auto_and_tracks_remaining_viewers() {
+        let mut qos = super::VideoQoS::default();
+        qos.on_connection_open(1);
+        qos.on_connection_open(2);
+        assert_eq!(qos.requested_bitrate(), None);
+        qos.user_bitrate(1, 30_000);
+        qos.user_bitrate(2, 8_000);
+        assert_eq!(qos.requested_bitrate(), Some(8_000));
+        qos.user_bitrate(2, 200_000);
+        assert_eq!(qos.requested_bitrate(), Some(8_000));
+        qos.on_connection_close(2);
+        assert_eq!(qos.requested_bitrate(), Some(30_000));
+        qos.user_bitrate(1, -1);
+        assert_eq!(qos.requested_bitrate(), None);
+    }
+
     use super::*;
 
     fn stable_qos() -> VideoQoS {

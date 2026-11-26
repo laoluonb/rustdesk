@@ -1121,7 +1121,7 @@ jobs:
       - name: Check desktop viewport and alias regressions before packaging
         if: ${{ inputs.upload-artifact }}
         working-directory: flutter
-        run: flutter test test/desktop_viewport_test.dart test/bluebloom_release_test.dart --timeout 60s
+        run: flutter test test/desktop_viewport_test.dart test/bluebloom_release_test.dart test/bluebloom_session_test.dart --timeout 60s
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
@@ -1184,6 +1184,14 @@ jobs:
           cargo test --locked --release --lib --features "$FEATURES"
           # Opt-in, and its macOS tests run nowhere else.
           cargo test --locked --release -p clipboard --features unix-file-copy-paste
+
+      - name: Test stream preferences and connection labels
+        if: ${{ inputs.upload-artifact && matrix.job.arch == 'aarch64' }}
+        run: |
+          FEATURES=$(./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }} --print-features)
+          cargo test --locked --release --lib lan_label_tests --features "$FEATURES"
+          cargo test --locked --release --lib manual_bitrate_restores_auto --features "$FEATURES"
+          cargo test --locked --release -p scrap target_bitrate_tests --features hwcodec
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'

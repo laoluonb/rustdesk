@@ -700,6 +700,8 @@ message OptionMessage {
   BoolOption disable_camera = 17;
   BoolOption terminal_persistent = 18;
   BoolOption show_my_cursor = 19;
+  // BlueBloom extension: 0 unchanged, -1 automatic, positive target in kbit/s.
+  int32 bluebloom_bitrate_kbps = 1001;
 }
 
 message TestDelay {

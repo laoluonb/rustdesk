@@ -57,6 +57,47 @@ pub enum EncoderCfg {
     VRAM(VRamEncoderConfig),
 }
 
+impl EncoderCfg {
+    pub fn quality(&self) -> f32 {
+        match self {
+            Self::VPX(c) => c.quality,
+            Self::AOM(c) => c.quality,
+            #[cfg(feature = "hwcodec")]
+            Self::HWRAM(c) => c.quality,
+            #[cfg(feature = "vram")]
+            Self::VRAM(c) => c.quality,
+        }
+    }
+
+    pub fn set_quality(&mut self, value: f32) {
+        match self {
+            Self::VPX(c) => c.quality = value,
+            Self::AOM(c) => c.quality = value,
+            #[cfg(feature = "hwcodec")]
+            Self::HWRAM(c) => c.quality = value,
+            #[cfg(feature = "vram")]
+            Self::VRAM(c) => c.quality = value,
+        }
+    }
+
+    pub fn quality_for_bitrate(&self, kbps: u32) -> f32 {
+        let bitrate = |ratio| match self {
+            Self::VPX(c) => (base_bitrate(c.width as _, c.height as _) as f32 * ratio) as u32,
+            Self::AOM(c) => (base_bitrate(c.width as _, c.height as _) as f32 * ratio) as u32,
+            #[cfg(feature = "hwcodec")]
+            Self::HWRAM(c) => HwRamEncoder::bitrate(&c.name, c.width, c.height, ratio),
+            #[cfg(feature = "vram")]
+            Self::VRAM(c) => VRamEncoder::bitrate(c.feature.data_format, c.width, c.height, ratio),
+        };
+        let (mut low, mut high) = (0.1, 40.0);
+        for _ in 0..24 {
+            let mid = (low + high) / 2.0;
+            if bitrate(mid) < kbps { low = mid; } else { high = mid; }
+        }
+        high
+    }
+}
+
 pub trait EncoderApi {
     fn new(cfg: EncoderCfg, i444: bool) -> ResultType<Self>
     where
@@ -1154,4 +1195,24 @@ pub fn test_av1() {
             );
         });
     });
+}
+
+#[cfg(test)]
+mod target_bitrate_tests {
+    use super::*;
+
+    #[test]
+    fn requested_mbps_maps_to_encoder_target_at_each_resolution() {
+        for (width, height) in [(1920, 1080), (3840, 2160)] {
+            let config = EncoderCfg::VPX(VpxEncoderConfig {
+                width, height, quality: 1.0, codec: VpxVideoCodecId::VP9,
+                keyframe_interval: None,
+            });
+            for target in [8_000, 14_000, 30_000] {
+                let ratio = config.quality_for_bitrate(target);
+                let actual = (base_bitrate(width, height) as f32 * ratio) as u32;
+                assert!(actual.abs_diff(target) <= 1, "{width}x{height}: {actual} != {target}");
+            }
+        }
+    }
 }

@@ -381,6 +381,8 @@ pub const KEYS_BUILDIN_SETTINGS: &[&str] = &[
     OPTION_QUIT_BUTTON_TEXT,
 ];
 
+pub const OPTION_BLUEBLOOM_BITRATE: &str = "bluebloom-bitrate-kbps";
+
 #[cfg(test)]
 mod tests {
     /// The glob above and the constants below share one namespace, and Rust

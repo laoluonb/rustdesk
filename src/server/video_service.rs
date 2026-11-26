@@ -743,6 +743,8 @@ fn run(vs: VideoService) -> ResultType<()> {
         capture_width,
         capture_height,
     );
+    let mut previous_bitrate = None;
+    quality = encoder_cfg.quality();
     let (mut second_instant, mut send_counter) = (Instant::now(), 0);
 
     while sp.ok() {
@@ -750,6 +752,8 @@ fn run(vs: VideoService) -> ResultType<()> {
         check_uac_switch(c.privacy_mode_id, c._capturer_privacy_mode_id)?;
         check_qos(
             &mut encoder,
+            &encoder_cfg,
+            &mut previous_bitrate,
             &mut quality,
             &mut spf,
             client_record,
@@ -1080,7 +1084,7 @@ fn setup_encoder(
     bool,
     Arc<Mutex<Option<Recorder>>>,
 )> {
-    let encoder_cfg = get_encoder_config(
+    let mut encoder_cfg = get_encoder_config(
         &c,
         name.to_string(),
         quality,
@@ -1088,6 +1092,9 @@ fn setup_encoder(
         last_portable_service_running,
         source,
     );
+    if let Some(kbps) = VIDEO_QOS.lock().unwrap().requested_bitrate() {
+        encoder_cfg.set_quality(encoder_cfg.quality_for_bitrate(kbps));
+    }
     Encoder::set_fallback(&encoder_cfg);
     let codec_format = Encoder::negotiated_codec();
     let recorder = get_recorder(record_incoming, display_idx, source == VideoSource::Camera);
@@ -1464,6 +1471,8 @@ pub fn make_display_changed_msg(
 
 fn check_qos(
     encoder: &mut Encoder,
+    encoder_cfg: &EncoderCfg,
+    previous_bitrate: &mut Option<u32>,
     ratio: &mut f32,
     spf: &mut Duration,
     client_record: bool,
@@ -1473,14 +1482,19 @@ fn check_qos(
 ) -> ResultType<()> {
     let mut video_qos = VIDEO_QOS.lock().unwrap();
     *spf = video_qos.spf();
-    if *ratio != video_qos.ratio() {
-        *ratio = video_qos.ratio();
+    let requested = video_qos.requested_bitrate();
+    let manual_changed = requested != *previous_bitrate;
+    *previous_bitrate = requested;
+    let next_ratio = requested.map(|kbps| if manual_changed { encoder_cfg.quality_for_bitrate(kbps) } else { *ratio })
+        .unwrap_or_else(|| video_qos.ratio());
+    if *ratio != next_ratio {
+        *ratio = next_ratio;
         if encoder.support_changing_quality() {
             allow_err!(encoder.set_quality(*ratio));
             video_qos.store_bitrate(encoder.bitrate());
         } else {
             // Now only vaapi doesn't support changing quality
-            if !video_qos.in_vbr_state() && !video_qos.latest_quality().is_custom() {
+            if requested.is_some() || manual_changed || (!video_qos.in_vbr_state() && !video_qos.latest_quality().is_custom()) {
                 log::info!("switch to change quality");
                 bail!("SWITCH");
             }

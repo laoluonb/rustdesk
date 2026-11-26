@@ -2064,6 +2064,9 @@ impl Connection {
         }
 
         #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
+        platform_additions.insert("bluebloom_bitrate".into(), json!(true));
+
+        #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
         if !platform_additions.is_empty() {
             pi.platform_additions = serde_json::to_string(&platform_additions).unwrap_or("".into());
         }
@@ -5011,6 +5014,10 @@ impl Connection {
                     .user_image_quality(self.inner.id(), image_quality);
             }
         }
+        if o.bluebloom_bitrate_kbps != 0 {
+            video_service::VIDEO_QOS.lock().unwrap()
+                .user_bitrate(self.inner.id(), o.bluebloom_bitrate_kbps);
+        }
         if o.custom_fps > 0 {
             video_service::VIDEO_QOS
                 .lock()
@@ -6139,6 +6146,7 @@ impl Connection {
             && option.image_quality.enum_value() == Ok(ImageQuality::NotSet)
             && option.custom_image_quality == 0
             && option.custom_fps == 0
+            && option.bluebloom_bitrate_kbps == 0
             && Self::is_bool_option_not_set(option.lock_after_session_end)
             && Self::is_bool_option_not_set(option.show_remote_cursor)
             && Self::is_bool_option_not_set(option.privacy_mode)
@@ -6270,6 +6278,9 @@ impl Connection {
         if option.custom_fps >= 0 {
             scoped.custom_fps = option.custom_fps;
         }
+        if option.bluebloom_bitrate_kbps == -1 || (500..=100_000).contains(&option.bluebloom_bitrate_kbps) {
+            scoped.bluebloom_bitrate_kbps = option.bluebloom_bitrate_kbps;
+        }
         scoped.supported_decoding = option.supported_decoding.clone();
         if let Ok(value) = option.disable_audio.enum_value() {
             scoped.disable_audio = value.into();
@@ -6300,6 +6311,7 @@ impl Connection {
         option.image_quality.enum_value() != Ok(ImageQuality::NotSet)
             || option.custom_image_quality != 0
             || option.custom_fps != 0
+            || option.bluebloom_bitrate_kbps != 0
             || option.supported_decoding.is_some()
             || !Self::is_bool_option_not_set(option.lock_after_session_end)
             || !Self::is_bool_option_not_set(option.show_remote_cursor)

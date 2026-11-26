@@ -367,6 +367,14 @@ fn tcp_punch_allowed() -> bool {
             || crate::get_webrtc_enabled())
 }
 
+fn lan_address(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ip) => ip.is_private() || ip.is_loopback() || ip.is_link_local(),
+        std::net::IpAddr::V6(ip) => ip.to_ipv4_mapped().map(|ip| lan_address(ip.into())).unwrap_or_else(||
+            ip.is_loopback() || (ip.segments()[0] & 0xfe00) == 0xfc00 || (ip.segments()[0] & 0xffc0) == 0xfe80),
+    }
+}
+
 type SessionTransport = (
     Stream,
     bool,
@@ -457,7 +465,7 @@ impl Client {
                     true,
                     None,
                     None,
-                    "TCP",
+                    if peer.parse::<std::net::IpAddr>().map(lan_address).unwrap_or(false) { "TCP/LAN" } else { "TCP" },
                     None,
                 ),
                 (0, "".to_owned()),
@@ -1654,6 +1662,7 @@ impl Client {
         }
         log::debug!("{} punch secure_connection ok", punch_type);
         let relay = (typ == "Relay").then(|| check_port(relay_server, RELAY_PORT));
+        let typ = if direct && is_local && typ == "TCP" && lan_address(peer.ip()) { "TCP/LAN" } else { typ };
         Ok((conn, direct, pk, kcp, typ, relay))
     }
 
@@ -3411,6 +3420,10 @@ impl LoginConfigHandler {
                 *self.custom_fps.lock().unwrap() = Some(custom_fps as _);
             }
         }
+        if q == "custom" {
+            msg.bluebloom_bitrate_kbps = self.get_option(keys::OPTION_BLUEBLOOM_BITRATE)
+                .parse::<i32>().ok().filter(|v| (500..=100_000).contains(v)).unwrap_or(0);
+        }
         let view_only = self.get_toggle_option("view-only");
         if view_only {
             msg.disable_keyboard = BoolOption::Yes.into();
@@ -3552,6 +3565,7 @@ impl LoginConfigHandler {
         let mut misc = Misc::new();
         misc.set_option(OptionMessage {
             custom_image_quality: image_quality << 8,
+            bluebloom_bitrate_kbps: -1,
             ..Default::default()
         });
         let mut msg_out = Message::new();
@@ -3559,6 +3573,7 @@ impl LoginConfigHandler {
         let mut config = self.load_config();
         config.image_quality = "custom".to_owned();
         config.custom_image_quality = vec![image_quality as _];
+        config.options.remove(keys::OPTION_BLUEBLOOM_BITRATE);
         self.save_config(config);
         msg_out
     }
@@ -3574,6 +3589,7 @@ impl LoginConfigHandler {
             let mut misc = Misc::new();
             misc.set_option(OptionMessage {
                 image_quality: q.into(),
+                bluebloom_bitrate_kbps: -1,
                 ..Default::default()
             });
             let mut msg_out = Message::new();
@@ -3581,6 +3597,9 @@ impl LoginConfigHandler {
             res = Some(msg_out);
         }
         let mut config = self.load_config();
+        if value != "custom" {
+            config.options.remove(keys::OPTION_BLUEBLOOM_BITRATE);
+        }
         config.image_quality = value;
         self.save_config(config);
         res
@@ -5587,6 +5606,9 @@ async fn udp_nat_connect(
             log::debug!("{err}");
             anyhow!(err)
         })?;
+    let typ = if socket.peer_addr().map(|a| lan_address(a.ip())).unwrap_or(false) {
+        if typ == "IPv6" { "UDP/IPv6/LAN" } else { "UDP/LAN" }
+    } else { typ };
     let res = KcpStream::connect(socket, Duration::from_millis(ms_timeout))
         .await
         .map_err(|err| {
@@ -5941,5 +5963,18 @@ mod kx_tests {
         let (seen, decrypted) = handshake(KX_VERSION_LATEST, Some(0)).await;
         assert_eq!(seen.picked, 1);
         assert!(!seen.decrypted && !decrypted);
+    }
+}
+
+#[cfg(test)]
+mod lan_label_tests {
+    #[test]
+    fn only_local_address_ranges_are_labeled_lan() {
+        for address in ["192.168.1.2", "10.1.0.4", "172.16.0.1", "127.0.0.1", "fd00::2", "fe80::2", "::ffff:192.168.1.2"] {
+            assert!(super::lan_address(address.parse().unwrap()));
+        }
+        for address in ["8.8.8.8", "100.64.0.1", "172.32.0.1", "2606:4700:4700::1111"] {
+            assert!(!super::lan_address(address.parse().unwrap()));
+        }
     }
 }

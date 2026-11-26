@@ -18,6 +18,8 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_size/window_size.dart' as window_size;
 
 import '../../common.dart';
+import '../../bluebloom/session_presentation.dart';
+import '../../bluebloom/stream_controls.dart';
 import '../../models/model.dart';
 import '../../models/platform_model.dart';
 import '../../common/shared_state.dart';
@@ -344,11 +346,11 @@ class _ToolbarTheme {
 
   static double dividerSpaceToAction = isWindows ? 8 : 14;
 
-  static double menuBorderRadius = isWindows ? 5.0 : 7.0;
+  static double menuBorderRadius = 14.0;
   static EdgeInsets menuPadding = isWindows
       ? EdgeInsets.fromLTRB(4, 12, 4, 12)
       : EdgeInsets.fromLTRB(6, 14, 6, 14);
-  static const double menuButtonBorderRadius = 3.0;
+  static const double menuButtonBorderRadius = 8.0;
 
   static Color borderColor(BuildContext context) =>
       MyTheme.color(context).border3 ?? MyTheme.border;
@@ -357,6 +359,11 @@ class _ToolbarTheme {
       MyTheme.color(context).divider;
 
   static MenuStyle defaultMenuStyle(BuildContext context) => MenuStyle(
+        backgroundColor: MaterialStatePropertyAll(
+          Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xf2262e3b) : const Color(0xf7f7faff)),
+        elevation: const MaterialStatePropertyAll(10),
+        surfaceTintColor: const MaterialStatePropertyAll(Colors.transparent),
         side: MaterialStateProperty.all(BorderSide(
           width: 1,
           color: borderColor(context),
@@ -1965,22 +1972,65 @@ class _DisplayMenuState extends State<_DisplayMenu> {
     });
   }
 
+  Widget streamMenuLabel(IconData icon, String text) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [Icon(icon, size: 18), const SizedBox(width: 10), Text(text)]);
+
   imageQuality() {
     return futureBuilder(
-        future: toolbarImageQuality(context, widget.id, widget.ffi),
+        future: Future.wait<dynamic>([
+          toolbarImageQuality(context, widget.id, widget.ffi),
+          bind.sessionGetOption(sessionId: ffi.sessionId, arg: 'custom-fps'),
+          bind.sessionGetOption(sessionId: ffi.sessionId, arg: blueBloomBitrateOption),
+        ]),
         hasData: (data) {
-          final v = data as List<TRadioMenu<String>>;
+          final values = data as List<dynamic>;
+          final v = values[0] as List<TRadioMenu<String>>;
+          final custom = v.isNotEmpty && v.first.groupValue == 'custom';
+          final fps = custom ? int.tryParse(values[1] ?? '') ?? 30 : 30;
+          final bitrate = custom ? int.tryParse(values[2] ?? '') ?? 0 : 0;
+          final supportsBitrate = pi.platformAdditions['bluebloom_bitrate'] == true;
+          final supportsFps = versionCmp(pi.version, '1.2.0') >= 0;
           return _SubmenuButton(
             ffi: widget.ffi,
-            child: Text(translate('Image Quality')),
-            menuChildren: v
-                .map((e) => RdoMenuButton<String>(
-                    value: e.value,
-                    groupValue: e.groupValue,
-                    onChanged: e.onChanged,
-                    child: e.child,
-                    ffi: ffi))
-                .toList(),
+            child: streamMenuLabel(Icons.tune_rounded, '画质与流畅度'),
+            menuChildren: [
+              ...v.map((e) => RdoMenuButton<String>(
+                    value: e.value, groupValue: e.groupValue,
+                    onChanged: e.onChanged, child: e.child, ffi: ffi)),
+              const Divider(),
+              _SubmenuButton(ffi: ffi,
+                child: streamMenuLabel(Icons.speed_rounded, '帧率上限 · $fps fps'),
+                menuChildren: [
+                  for (final value in blueBloomFpsPresets)
+                    RdoMenuButton<int>(value: value, groupValue: fps,
+                      child: Text('$value 帧'), ffi: ffi,
+                      onChanged: supportsFps ? (value) async {
+                        if (value == null) return;
+                        await useCustomStreamQuality(ffi);
+                        await bind.sessionSetCustomFps(sessionId: ffi.sessionId, fps: value);
+                      } : null),
+                  MenuButton(ffi: ffi, child: const Text('自定义帧率与画质…'),
+                    onPressed: () => customImageQualityDialog(ffi.sessionId, id, ffi)),
+                ]),
+              _SubmenuButton(ffi: ffi,
+                child: streamMenuLabel(Icons.network_check_rounded,
+                  '目标码率 · ${bitrate == 0 ? "自动" : "${bitrate / 1000} Mbps"}'),
+                menuChildren: [
+                  RdoMenuButton<int>(value: 0, groupValue: bitrate, ffi: ffi,
+                    child: const Text('自动（自适应）'),
+                    onChanged: supportsBitrate ? (_) => setTargetBitrate(ffi, 0) : null),
+                  for (final value in blueBloomBitratePresets)
+                    RdoMenuButton<int>(value: value, groupValue: bitrate, ffi: ffi,
+                      child: Text('${value ~/ 1000} Mbps'),
+                      onChanged: supportsBitrate ? (_) => setTargetBitrate(ffi, value) : null),
+                  MenuButton(ffi: ffi, child: const Text('自定义码率…'),
+                    onPressed: supportsBitrate ? () => showTargetBitrateDialog(ffi, bitrate) : null),
+                  if (!supportsBitrate)
+                    const Padding(padding: EdgeInsets.all(12),
+                      child: Text('目标码率需要被控端升级蓝花远控', style: TextStyle(fontSize: 12))),
+                ]),
+            ],
           );
         });
   }
@@ -1994,7 +2044,7 @@ class _DisplayMenuState extends State<_DisplayMenu> {
 
           return _SubmenuButton(
               ffi: widget.ffi,
-              child: Text(translate('Codec')),
+              child: streamMenuLabel(Icons.memory_rounded, translate('Codec')),
               menuChildren: v
                   .map((e) => RdoMenuButton(
                       value: e.value,
