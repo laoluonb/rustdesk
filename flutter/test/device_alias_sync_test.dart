@@ -5,7 +5,7 @@ import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/generated_bridge.dart';
 import 'package:flutter_hbb/models/ab_model.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
-import 'package:flutter_hbb/models/model.dart';
+import 'package:flutter_hbb/models/model.dart' as model;
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -130,8 +130,8 @@ void main() {
   });
 
   test('display name changes are visible even with unchanged geometry', () {
-    final first = Display()..friendlyName = 'Internal';
-    final second = Display()..friendlyName = 'External';
+    final first = model.Display()..friendlyName = 'Internal';
+    final second = model.Display()..friendlyName = 'External';
     expect(first == second, false);
   });
 
