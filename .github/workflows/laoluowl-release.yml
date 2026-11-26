@@ -13,6 +13,11 @@ on:
         default: ''
         type: string
 
+      repair-rpm:
+        description: Repair RPM version metadata in the published v1.5.8 release
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -22,7 +27,7 @@ concurrency:
 
 jobs:
   packages:
-    if: inputs.source-run == '' && github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
+    if: inputs.repair-rpm != true && inputs.source-run == '' && github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
     uses: ./.github/workflows/flutter-build.yml
     permissions:
       contents: write
@@ -32,7 +37,7 @@ jobs:
       upload-tag: ${{ inputs.tag }}
 
   recover-appimage:
-    if: inputs.source-run != '' && github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
+    if: inputs.repair-rpm != true && inputs.source-run != '' && github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -185,3 +190,19 @@ jobs:
             test "$remote_digest" = "sha256:$digest"
           done < release-assets/SHA256SUMS.txt
           gh release edit "$RELEASE_TAG" --draft=false --latest
+
+  repair-rpm:
+    if: inputs.repair-rpm && github.repository == 'laoluonb/rustdesk' && github.ref == 'refs/heads/laoluowl-client'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Correct RPM metadata while preserving and verifying payloads
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y rpm cpio
+          python3 res/repair_release_rpm.py
