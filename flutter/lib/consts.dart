@@ -285,7 +285,7 @@ const double kDesktopFileTransferHeaderHeight = 25.0;
 
 const double kMinFps = 5;
 const double kDefaultFps = 30;
-const double kMaxFps = 1000; // Numeric input guard; sessions use the remote display rate.
+const double kMaxFps = 120;
 
 const double kMinQuality = 10;
 const double kDefaultQuality = 50;
