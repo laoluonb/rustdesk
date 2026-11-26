@@ -21,6 +21,12 @@ class _Cloud extends Fake implements RustdeskImpl {
   @override
   String mainGetBuildinOption({required String key, dynamic hint}) => '';
   @override
+  bool isDisableAb({dynamic hint}) => false;
+  @override
+  bool isDisableAccount({dynamic hint}) => false;
+  @override
+  bool isDisableGroupPanel({dynamic hint}) => false;
+  @override
   String mainGetPeerOptionSync(
           {required String id, required String key, dynamic hint}) =>
       'old-local-alias';
