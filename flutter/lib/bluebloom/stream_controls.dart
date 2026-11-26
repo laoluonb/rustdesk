@@ -11,6 +11,8 @@ Future<void> useCustomStreamQuality(FFI ffi) async {
     await bind.sessionSetCustomImageQuality(
         sessionId: ffi.sessionId,
         value: saved != null && saved.isNotEmpty ? saved.first : 50);
+    // Non-custom modes run at 30 fps; persist that limit when entering custom mode.
+    await bind.sessionSetCustomFps(sessionId: ffi.sessionId, fps: 30);
   }
 }
 
@@ -61,7 +63,7 @@ void showTargetBitrateDialog(FFI ffi, int current) {
                 onChanged: (value) => text = value,
                 onFieldSubmitted: (_) => submit()),
             const SizedBox(height: 12),
-            const Text('设置编码目标，实际码率随画面变化并受硬件能力限制。多屏为每屏目标；多人同时观看时采用较低目标。'),
+            const Text('手动设置编码目标，选择自动恢复自适应。实际码率随画面变化并受硬件限制；多屏为每屏目标，多人观看采用较低目标。'),
           ])),
       actions: [
         dialogButton('Cancel',

@@ -37,7 +37,7 @@ class SessionStats extends StatelessWidget {
             '${rate == null ? "—" : (rate / 1000).toStringAsFixed(1)} Mbps',
             '${d.delay ?? "—"} ms RTT',
             if (displays.length == 1)
-              '${displays.first.height}P',
+              '${displays.first.height}P · ${displays.first.width}×${displays.first.height}',
             if (d.codecFormat != null) d.codecFormat!,
           ];
           return Container(
