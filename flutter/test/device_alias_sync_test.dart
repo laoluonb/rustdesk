@@ -5,6 +5,7 @@ import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/generated_bridge.dart';
 import 'package:flutter_hbb/models/ab_model.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
+import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -114,6 +115,24 @@ void main() {
     await gFFI.abModel.pullDeviceAliases();
     gFFI.groupModel.refreshLocalAliases();
     expect(gFFI.groupModel.peers.first.alias, '');
+  });
+
+  test('monitor model exposes the remote display name and resolution', () {
+    final display = gFFI.ffiModel.evtToDisplay({
+      'name': r'\\.\DISPLAY1', 'friendly_name': 'TL140BDXP01-0',
+      'width': 2560, 'height': 1440,
+    });
+    expect(display.monitorDescription, 'TL140BDXP01-0 · 2560×1440');
+    display.friendlyName = '';
+    expect(display.monitorDescription, r'\\.\DISPLAY1 · 2560×1440');
+    final legacy = gFFI.ffiModel.evtToDisplay({'width': 1920, 'height': 1080});
+    expect(legacy.monitorDescription, '1920×1080');
+  });
+
+  test('display name changes are visible even with unchanged geometry', () {
+    final first = Display()..friendlyName = 'Internal';
+    final second = Display()..friendlyName = 'External';
+    expect(first == second, false);
   });
 
   test('failed upload cannot report a successful rename', () async {

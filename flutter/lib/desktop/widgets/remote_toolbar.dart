@@ -993,13 +993,21 @@ class _MonitorCycle {
   bool get _inRange => _current >= 0 && _current < total;
 
   String get label => _inRange ? '${_current + 1}' : '*';
-  String get tooltip => '${translate('Switch display')} ($label/$total)';
+  String get tooltip {
+    final current = _inRange
+        ? '#$label · ${_pi.displays[_current].monitorDescription}'
+        : translate('All monitors');
+    final next = ((_inRange ? _current : -1) + 1) % total;
+    return '$current\n${translate('Switch display')}: '
+        '#${next + 1} · ${_pi.displays[next].monitorDescription}';
+  }
 
   void next() {
     final t = total;
     if (t < 2) return;
     final from = _inRange ? _current : -1;
     final target = (from + 1) % t;
+    showToast('#${target + 1} · ${_pi.displays[target].monitorDescription}');
     final isChooseDisplayToOpenInNewWindow = _pi.isSupportMultiDisplay &&
         bind.sessionGetDisplaysAsIndividualWindows(sessionId: ffi.sessionId) ==
             'Y';
@@ -1121,7 +1129,7 @@ class _MonitorMenu extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(children: buildMonitorList(context, false)),
+        ...buildMonitorList(context, false),
         supportIndividualWindows ? Divider() : Offstage(),
         supportIndividualWindows ? chooseDisplayBehavior() : Offstage(),
       ],
@@ -1162,6 +1170,20 @@ class _MonitorMenu extends StatelessWidget {
           RxInt display = CurrentDisplayState.find(id);
 
           final isAllMonitors = i == kAllDisplayValue;
+          final description = isAllMonitors
+              ? translate('All monitors')
+              : '#${i + 1} · ${pi.displays[i].monitorDescription}';
+          if (!isMulti) {
+            return MenuButton(
+              ffi: ffi,
+              onPressed: () => onPressed(i, pi, false),
+              trailingIcon: i == display.value ? const Icon(Icons.check) : null,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ),
+            );
+          }
           final width = SimpleWrapper<double>(0);
           Widget? monitorsIcon;
           if (isAllMonitors) {
@@ -1169,11 +1191,7 @@ class _MonitorMenu extends StatelessWidget {
                 width, Colors.white, _ToolbarTheme.blueColor);
           }
           return _IconMenuButton(
-            tooltip: isMulti
-                ? ''
-                : isAllMonitors
-                    ? 'All monitors'
-                    : '#{${i + 1}} monitor',
+            tooltip: description,
             hMargin: isMulti ? null : 6,
             vMargin: isMulti ? null : 12,
             topLevel: false,
@@ -1293,6 +1311,9 @@ class _MonitorMenu extends StatelessWidget {
     }
     RxInt display = CurrentDisplayState.find(id);
     if (display.value != i) {
+      showToast(i == kAllDisplayValue
+          ? translate('All monitors')
+          : '#${i + 1} · ${pi.displays[i].monitorDescription}');
       final isChooseDisplayToOpenInNewWindow = pi.isSupportMultiDisplay &&
           bind.sessionGetDisplaysAsIndividualWindows(
                   sessionId: ffi.sessionId) ==

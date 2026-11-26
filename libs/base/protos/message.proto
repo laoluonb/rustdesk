@@ -45,6 +45,7 @@ message DisplayInfo {
   bool cursor_embedded = 7;
   Resolution original_resolution = 8;
   double scale = 9;
+  string friendly_name = 10;
 }
 
 message PortForward {

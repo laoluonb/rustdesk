@@ -864,6 +864,8 @@ class FfiModel with ChangeNotifier {
     newDisplay.originalHeight = int.tryParse(
             evt['original_height'] ?? kInvalidResolutionValue.toString()) ??
         kInvalidResolutionValue;
+    newDisplay.name = _pi.displays[display].name;
+    newDisplay.friendlyName = _pi.displays[display].friendlyName;
     newDisplay._scale = _pi.scaleOfDisplay(display);
     _pi.displays[display] = newDisplay;
 
@@ -1652,6 +1654,8 @@ class FfiModel with ChangeNotifier {
     d.y = evt['y']?.toDouble() ?? d.y;
     d.width = evt['width'] ?? d.width;
     d.height = evt['height'] ?? d.height;
+    d.name = evt['name'] as String? ?? '';
+    d.friendlyName = evt['friendly_name'] as String? ?? '';
     d.cursorEmbedded = evt['cursor_embedded'] == 1;
     d.originalWidth = evt['original_width'] ?? kInvalidResolutionValue;
     d.originalHeight = evt['original_height'] ?? kInvalidResolutionValue;
@@ -4490,6 +4494,17 @@ const kInvalidResolutionValue = -1;
 const kVirtualDisplayResolutionValue = 0;
 
 class Display {
+  String name = '';
+  String friendlyName = '';
+
+  String get monitorDescription => [
+        if (friendlyName.trim().isNotEmpty)
+          friendlyName.trim()
+        else if (name.trim().isNotEmpty)
+          name.trim(),
+        '${width}×$height',
+      ].join(' · ');
+
   double x = 0;
   double y = 0;
   int width = 0;
@@ -4516,6 +4531,8 @@ class Display {
       _innerEqual(other);
 
   bool _innerEqual(Display other) =>
+      other.name == name &&
+      other.friendlyName == friendlyName &&
       other.x == x &&
       other.y == y &&
       other.width == width &&

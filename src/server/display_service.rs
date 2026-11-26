@@ -847,6 +847,8 @@ pub(super) fn update_sync_displays(all: &Vec<Display>) -> Vec<DisplayInfo> {
         && crate::is_server()
         && wayland_has_compositor()
         && scrap::wayland::display::get_displays().displays.len() > 1;
+    #[cfg(windows)]
+    let friendly_names = crate::platform::monitor_friendly_names();
     let displays = all
         .iter()
         .map(|d| {
@@ -874,6 +876,8 @@ pub(super) fn update_sync_displays(all: &Vec<Display>) -> Vec<DisplayInfo> {
                 y: d.origin().1 as _,
                 width: d.width() as _,
                 height: d.height() as _,
+                #[cfg(windows)]
+                friendly_name: friendly_names.get(&display_name).cloned().unwrap_or_default(),
                 name: display_name,
                 online: d.is_online(),
                 cursor_embedded: false,

@@ -99,6 +99,9 @@ use windows_service::{
 };
 use winreg::{enums::*, RegKey};
 
+mod monitor_names;
+pub(crate) use monitor_names::monitor_friendly_names;
+
 mod acl;
 pub(crate) mod installer_files;
 mod installer_handoff;
