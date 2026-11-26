@@ -85,7 +85,7 @@ void main() {
     model.listInitialized = true;
     model.addressbooks['My address book'] = Ab(
         AbProfile('personal', 'My address book', 'owner', null, 0, null), true);
-    gFFI.groupModel.peers.assignAll([Peer.fromJson({'id': '533088447'})]);
+    gFFI.groupModel.peers.value = [Peer.fromJson({'id': '533088447'})];
   }
 
   test('device rename is saved to the personal account and read on another device', () async {

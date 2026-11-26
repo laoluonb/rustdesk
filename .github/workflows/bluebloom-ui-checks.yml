@@ -1,0 +1,40 @@
+name: BlueBloom UI regressions
+on:
+  workflow_dispatch:
+    inputs:
+      bridge-run:
+        description: Build run containing bridge artifacts for the same FFI schema
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flutter: '3.24.5'
+            bridge: bridge-artifact
+          - flutter: '3.44.9'
+            bridge: bridge-artifact-flutter-3.44
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          submodules: recursive
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ matrix.flutter }}
+          cache: true
+      - if: matrix.flutter == '3.44.9'
+        run: bash .github/patches/apply_flutter_3.44_source_patches.sh
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ matrix.bridge }}
+          path: ./
+          run-id: ${{ inputs.bridge-run }}
+          github-token: ${{ github.token }}
+      - working-directory: flutter
+        run: flutter test test/desktop_viewport_test.dart test/bluebloom_release_test.dart test/bluebloom_session_test.dart test/device_alias_sync_test.dart --timeout 60s
