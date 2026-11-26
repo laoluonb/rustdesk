@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/consts.dart';
+import 'package:flutter_hbb/bluebloom/session_presentation.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
@@ -1838,6 +1839,7 @@ void showConfirmSwitchSidesDialog(
 }
 
 customImageQualityDialog(SessionID sessionId, String id, FFI ffi) async {
+  final maxFps = displayFpsLimit(ffi.ffiModel.pi.tryGetDisplay()?.refreshRate ?? 0).toDouble();
   double initQuality = kDefaultQuality;
   double initFps = kDefaultFps;
   bool qualitySet = false;
@@ -1897,9 +1899,7 @@ customImageQualityDialog(SessionID sessionId, String id, FFI ffi) async {
   initFps = fpsOption == null
       ? kDefaultFps
       : double.tryParse(fpsOption) ?? kDefaultFps;
-  if (initFps < kMinFps || initFps > kMaxFps) {
-    initFps = kDefaultFps;
-  }
+  initFps = initFps.clamp(kMinFps, maxFps);
 
   final content = customImageQualityWidget(
       initQuality: initQuality,
@@ -1907,6 +1907,7 @@ customImageQualityDialog(SessionID sessionId, String id, FFI ffi) async {
       setQuality: (v) => setCustomValues(quality: v),
       setFps: (v) => setCustomValues(fps: v),
       showFps: !hideFps,
+      maxFps: maxFps,
       showMoreQuality: !hideMoreQuality);
   msgBoxCommon(ffi.dialogManager, 'Custom Image Quality', content, [btnClose]);
 }

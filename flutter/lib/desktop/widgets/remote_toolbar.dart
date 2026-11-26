@@ -2008,7 +2008,10 @@ class _DisplayMenuState extends State<_DisplayMenu> {
           final values = data as List<dynamic>;
           final v = values[0] as List<TRadioMenu<String>>;
           final custom = v.isNotEmpty && v.first.groupValue == 'custom';
-          final fps = custom ? int.tryParse(values[1] ?? '') ?? 30 : 30;
+          final refreshRate = pi.tryGetDisplay()?.refreshRate ?? 0;
+          final maxFps = displayFpsLimit(refreshRate);
+          final requestedFps = custom ? int.tryParse(values[1] ?? '') ?? 30 : 30;
+          final fps = requestedFps.clamp(5, maxFps);
           final bitrate = custom ? int.tryParse(values[2] ?? '') ?? 0 : 0;
           final supportsBitrate = pi.platformAdditions['bluebloom_bitrate'] == true;
           final supportsFps = versionCmp(pi.version, '1.2.0') >= 0;
@@ -2023,9 +2026,10 @@ class _DisplayMenuState extends State<_DisplayMenu> {
               _SubmenuButton(ffi: ffi,
                 child: streamMenuLabel(Icons.speed_rounded, '帧率上限 · $fps fps'),
                 menuChildren: [
-                  for (final value in blueBloomFpsPresets)
+                  for (final value in blueBloomFpsPresets(maxFps))
                     RdoMenuButton<int>(value: value, groupValue: fps,
-                      child: Text('$value 帧'), ffi: ffi,
+                      child: Text(value == maxFps && refreshRate > 0
+                          ? '$value 帧（当前屏幕上限）' : '$value 帧'), ffi: ffi,
                       onChanged: supportsFps ? (value) async {
                         if (value == null) return;
                         await useCustomStreamQuality(ffi);

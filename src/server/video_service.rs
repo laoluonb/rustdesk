@@ -761,6 +761,10 @@ fn run(vs: VideoService) -> ResultType<()> {
             &mut second_instant,
             &sp.name(),
         )?;
+        if vs.source.is_monitor() {
+            let refresh_rate = display_service::get_display_refresh_rate(display_idx);
+            spf = monitor_frame_interval(spf, refresh_rate);
+        }
         // On macOS, a refresh here would destroy a hardware encoder that has been fed a frame but
         // not yet produced its first packet, restarting the warm-up forever. Defer until it has;
         // one that never does is still switched away from by max_fail_times in handle_one_frame.
@@ -1484,6 +1488,14 @@ pub fn make_display_changed_msg(
     Some(msg_out)
 }
 
+fn monitor_frame_interval(requested: Duration, refresh_rate: f64) -> Duration {
+    if refresh_rate.is_finite() && refresh_rate >= 1.0 {
+        requested.max(Duration::from_secs_f64(1.0 / refresh_rate))
+    } else {
+        requested
+    }
+}
+
 fn check_qos(
     encoder: &mut Encoder,
     encoder_cfg: &EncoderCfg,
@@ -1613,6 +1625,17 @@ fn handle_screenshot(screenshot: Screenshot, msg: String, w: usize, h: usize, da
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn monitor_pacing_respects_refresh_and_lower_user_target() {
+        use std::time::Duration;
+        for hz in [60.0, 144.0, 165.0, 240.0] {
+            let fast = Duration::from_secs_f64(1.0 / 360.0);
+            assert_eq!(super::monitor_frame_interval(fast, hz), Duration::from_secs_f64(1.0 / hz));
+            let slow = Duration::from_secs_f64(1.0 / 30.0);
+            assert_eq!(super::monitor_frame_interval(slow, hz), slow);
+        }
+    }
+
     use super::refresh_allowed;
 
     #[test]

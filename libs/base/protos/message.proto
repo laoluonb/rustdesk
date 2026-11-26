@@ -46,6 +46,7 @@ message DisplayInfo {
   Resolution original_resolution = 8;
   double scale = 9;
   string friendly_name = 10;
+  double refresh_rate = 11;
 }
 
 message PortForward {

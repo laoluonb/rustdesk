@@ -50,7 +50,8 @@ delay:
 // Constants
 pub const FPS: u32 = 30;
 pub const MIN_FPS: u32 = 1;
-pub const MAX_FPS: u32 = 120;
+// Input validation ceiling; monitor pacing is capped separately by its refresh rate.
+pub const MAX_FPS: u32 = 1000;
 pub const INIT_FPS: u32 = 15;
 const MIN_AUTO_FPS: u32 = 5;
 
@@ -898,15 +899,15 @@ impl RttCalculator {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn high_fps_lan_reaches_requested_120_without_a_60_cap() {
+    fn high_fps_lan_reaches_requested_240_without_a_120_cap() {
         let mut qos = super::VideoQoS::default();
         qos.on_connection_open(1);
-        qos.user_custom_fps(1, 120);
+        qos.user_custom_fps(1, 240);
         qos.advance_ms(2000);
         for _ in 0..30 {
             qos.user_network_delay(1, 4);
         }
-        assert_eq!(qos.fps(), 120);
+        assert_eq!(qos.fps(), 240);
         qos.user_custom_fps(1, 30);
         qos.user_network_delay(1, 4);
         assert_eq!(qos.fps(), 30);

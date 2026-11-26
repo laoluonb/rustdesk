@@ -7,7 +7,16 @@ String sessionRouteLabel(String transport, bool direct) {
   return '$protocol ${!direct ? "Relay" : lan ? "LAN" : "P2P"}';
 }
 
-const blueBloomFpsPresets = [30, 60, 90, 120];
+int displayFpsLimit(double refreshRate) =>
+    refreshRate.isFinite && refreshRate >= 1
+        ? refreshRate.round().clamp(5, 1000)
+        : 120; // Older peers do not report refresh rates.
+
+List<int> blueBloomFpsPresets(int maximum) => {
+      for (final fps in [30, 60, 90, 120, 144, 165, 180, 240, 360, 480])
+        if (fps < maximum) fps,
+      maximum,
+    }.toList();
 const blueBloomBitratePresets = [8000, 14000, 30000];
 const blueBloomBitrateOption = 'bluebloom-bitrate-kbps';
 

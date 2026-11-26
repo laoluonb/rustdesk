@@ -153,7 +153,7 @@ impl Drop for WaitStamp<'_> {
 /// The rate to grab at for an encoder that asks for `spf` and is busy `busy` per frame: what it
 /// asks for, or what it achieves when that is less.
 fn demand_fps_of(spf: Duration, busy: Option<Duration>) -> u8 {
-    let max = f64::from(super::video_qos::MAX_FPS);
+    let max = 120.0; // Preserve the existing DRM IPC rate range (u8).
     let asked = if spf.is_zero() {
         max
     } else {

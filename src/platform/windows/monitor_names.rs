@@ -19,7 +19,7 @@ extern "system" {
     fn DisplayConfigGetDeviceInfo(requestPacket: *mut DISPLAYCONFIG_DEVICE_INFO_HEADER) -> i32;
 }
 
-pub(crate) fn monitor_friendly_names() -> HashMap<String, String> {
+pub(crate) fn monitor_metadata() -> HashMap<String, (String, f64)> {
     let mut names = HashMap::new();
     unsafe {
         let mut path_count = 0;
@@ -54,13 +54,18 @@ pub(crate) fn monitor_friendly_names() -> HashMap<String, String> {
             target.header.size = mem::size_of_val(&target) as _;
             target.header.adapterId = path.targetInfo.adapterId;
             target.header.id = path.targetInfo.id;
-            if DisplayConfigGetDeviceInfo(&mut target.header) != 0 {
-                continue;
-            }
-            let label = wide_name(&target.monitorFriendlyDeviceName);
-            if !label.is_empty() {
-                names.entry(wide_name(&source.viewGdiDeviceName)).or_insert(label);
-            }
+            let label = if DisplayConfigGetDeviceInfo(&mut target.header) == 0 {
+                wide_name(&target.monitorFriendlyDeviceName)
+            } else {
+                String::new()
+            };
+            let rate = path.targetInfo.refreshRate;
+            let hz = if rate.Denominator > 0 {
+                f64::from(rate.Numerator) / f64::from(rate.Denominator)
+            } else {
+                0.0
+            };
+            names.entry(wide_name(&source.viewGdiDeviceName)).or_insert((label, hz));
         }
     }
     names

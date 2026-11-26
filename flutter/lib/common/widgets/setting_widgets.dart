@@ -12,13 +12,14 @@ customImageQualityWidget(
     required Function(double)? setQuality,
     required Function(double)? setFps,
     required bool showFps,
-    required bool showMoreQuality}) {
+    required bool showMoreQuality,
+    double maxFps = kMaxFps}) {
   if (initQuality < kMinQuality ||
       initQuality > (showMoreQuality ? kMaxMoreQuality : kMaxQuality)) {
     initQuality = kDefaultQuality;
   }
-  if (initFps < kMinFps || initFps > kMaxFps) {
-    initFps = kDefaultFps;
+  if (initFps < kMinFps || initFps > maxFps) {
+    initFps = initFps.clamp(kMinFps, maxFps);
   }
   final qualityValue = initQuality.obs;
   final fpsValue = initFps.obs;
@@ -119,8 +120,8 @@ customImageQualityWidget(
                   child: Slider(
                     value: fpsValue.value,
                     min: kMinFps,
-                    max: kMaxFps,
-                    divisions: ((kMaxFps - kMinFps) / 5).round(),
+                    max: maxFps,
+                    divisions: (maxFps - kMinFps).round().clamp(1, 1000),
                     onChanged: setFps == null
                         ? null
                         : (double value) async {

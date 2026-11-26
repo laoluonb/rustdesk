@@ -661,6 +661,7 @@ impl FlutterHandler {
             let mut display = serde_json::json!(h);
             display["name"] = serde_json::json!(d.name);
             display["friendly_name"] = serde_json::json!(d.friendly_name);
+            display["refresh_rate"] = serde_json::json!(d.refresh_rate);
             msg_vec.push(display);
         }
         serde_json::ser::to_string(&msg_vec).unwrap_or("".to_owned())

@@ -866,6 +866,7 @@ class FfiModel with ChangeNotifier {
         kInvalidResolutionValue;
     newDisplay.name = _pi.displays[display].name;
     newDisplay.friendlyName = _pi.displays[display].friendlyName;
+    newDisplay.refreshRate = _pi.displays[display].refreshRate;
     newDisplay._scale = _pi.scaleOfDisplay(display);
     _pi.displays[display] = newDisplay;
 
@@ -1656,6 +1657,7 @@ class FfiModel with ChangeNotifier {
     d.height = evt['height'] ?? d.height;
     d.name = evt['name'] as String? ?? '';
     d.friendlyName = evt['friendly_name'] as String? ?? '';
+    d.refreshRate = (evt['refresh_rate'] as num?)?.toDouble() ?? 0;
     d.cursorEmbedded = evt['cursor_embedded'] == 1;
     d.originalWidth = evt['original_width'] ?? kInvalidResolutionValue;
     d.originalHeight = evt['original_height'] ?? kInvalidResolutionValue;
@@ -4496,6 +4498,7 @@ const kVirtualDisplayResolutionValue = 0;
 class Display {
   String name = '';
   String friendlyName = '';
+  double refreshRate = 0;
 
   String get monitorDescription => [
         if (friendlyName.trim().isNotEmpty)
@@ -4503,6 +4506,7 @@ class Display {
         else if (name.trim().isNotEmpty)
           name.trim(),
         '${width}×$height',
+        if (refreshRate > 0) '${refreshRate.toStringAsFixed(2)} Hz',
       ].join(' · ');
 
   double x = 0;
@@ -4533,6 +4537,7 @@ class Display {
   bool _innerEqual(Display other) =>
       other.name == name &&
       other.friendlyName == friendlyName &&
+      other.refreshRate == refreshRate &&
       other.x == x &&
       other.y == y &&
       other.width == width &&
