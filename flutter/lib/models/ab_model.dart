@@ -432,6 +432,43 @@ class AbModel {
     return res;
   }
 
+  BaseAb? get deviceAliasBook => addressbooks[_personalAddressBookName] ??
+      addressbooks[_legacyAddressBookName];
+
+  String? deviceAlias(String id) =>
+      deviceAliasBook?.peers.firstWhereOrNull((p) => p.id == id)?.alias;
+
+  Future<void> pullDeviceAliases() async {
+    if (!listInitialized) {
+      await pullAb(force: ForcePullAb.listAndCurrent, quiet: true);
+    } else {
+      await deviceAliasBook?.pullAb(quiet: true);
+    }
+  }
+
+  Future<bool> changeDeviceAlias(Peer peer, String alias) async {
+    await pullDeviceAliases();
+    final ab = deviceAliasBook;
+    if (ab == null || !ab.initialized || !ab.canWrite()) return false;
+    final exists = ab.peers.any((p) => p.id == peer.id);
+    final saved = exists
+        ? await ab.changeAlias(id: peer.id, alias: alias)
+        : await ab.addPeers([
+              {
+                'id': peer.id,
+                'alias': alias,
+                'username': peer.username,
+                'hostname': peer.hostname,
+                'platform': peer.platform,
+              }
+            ]) == null;
+    // Re-read even on failure; legacy servers may have changed the local list.
+    await ab.pullAb(quiet: true);
+    _saveCache();
+    _refreshTab();
+    return saved;
+  }
+
   Future<bool> changeNote({required String id, required String note}) async {
     bool res = await current.changeNote(id: id, note: note);
     await pullNonLegacyAfterChange();
@@ -784,6 +821,7 @@ class AbModel {
 
   void _refreshTab() {
     platformFFI.tryHandle({'name': LoadEvent.addressBook});
+    gFFI.groupModel.refreshLocalAliases();
   }
 
   // should not call this function in a loop call stack

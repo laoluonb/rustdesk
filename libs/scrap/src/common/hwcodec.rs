@@ -182,7 +182,8 @@ impl EncoderApi for HwRamEncoder {
         );
         if bitrate > 0 {
             bitrate = Self::check_bitrate_range(&self.config, bitrate);
-            self.encoder.set_bitrate(bitrate as _).ok();
+            self.encoder.set_bitrate(bitrate as _)
+                .map_err(|e| anyhow!("Failed to set hardware bitrate: {e:?}"))?;
             self.bitrate = bitrate;
         }
         self.config.quality = ratio;

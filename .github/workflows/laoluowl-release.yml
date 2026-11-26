@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: New release tag, for example v1.5.7
+        description: New release tag, for example v1.5.8
         required: true
         type: string
 
@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v1\.5\.7$ ]]
+          [[ "$RELEASE_TAG" =~ ^v1\.5\.8$ ]]
           mkdir release-assets
           while IFS= read -r -d '' file; do
             name="${file##*/}"
@@ -61,8 +61,8 @@ jobs:
             -o -name '*.AppImage' -o -name '*.flatpak' -o -name '*.pkg.tar.zst' \
             -o -name 'rustdesk.sbom.json' \) -print0)
           cd release-assets
-          for package in rustdesk-1.5.7-{x86_64,aarch64}.{msi,exe,dmg,deb} \
-            rustdesk-1.5.7-{armv7,x86_64,aarch64,universal}.apk rustdesk-ios-unsigned.ipa; do
+          for package in rustdesk-1.5.8-{x86_64,aarch64}.{msi,exe,dmg,deb} \
+            rustdesk-1.5.8-{armv7,x86_64,aarch64,universal}.apk rustdesk-ios-unsigned.ipa; do
             test -s "$package"
           done
           sha256sum -- * > SHA256SUMS.txt
@@ -76,16 +76,11 @@ jobs:
             jq -e '.isDraft' existing-release.json
           else
             cat > release-notes.md <<'NOTES'
-          - 新品牌「蓝花远控 · BlueBloom Remote」，发行者 laoluonb，基于 RustDesk 开源项目；保留上游许可和版权说明。
-          - 使用蓝色花朵图标。桌面图标保留透明背景；iOS 图标按平台要求使用浅蓝底。
-          - 桌面/手机「关于」页面与桌面「常规」页面新增检查更新，启动检查可在设置中关闭。新版本提示读取 laoluonb/rustdesk 的稳定 Releases，显示更新说明及当前平台安装包，点击后由浏览器下载并手动安装。
-          - 更新检查不再使用 RustDesk 官方源，也不会自动安装官方客户端。下载通过 HTTPS，发布页提供 SHA256SUMS.txt；没有绕过系统安装签名检查。
-          - 远控菜单使用浅色圆角面板和分组图标，保留全部原有功能；新增 30/60/90/120 帧快捷档位，原有自定义帧率/画质入口继续保留。
-          - 目标码率支持自动、8/14/30 Mbps 及 0.5–100 Mbps 自定义。需要被控电脑同时升级此版本；旧客户端继续使用原有画质控制。目标是编码器请求值，实际码率受画面、编解码器和硬件限制；每个显示器单独应用，多人观看使用较低目标。选回自动恢复自适应码率。
-          - 质量监测改为半透明紧凑面板，显示会话时间、协议 LAN/P2P/Relay、实测 fps/Mbps、往返延迟、分辨率和编码格式，底部保留中继地址。LAN 根据实际内网 TCP/UDP 路径标记（VPN 私网也归入 LAN）；WebRTC 在当前接口无法确认局域网时标记 P2P，TURN 标记 Relay。不伪造丢包率、帧处理时间或不支持的 HDR/144 帧。
-          - 保留 v1.5.6 的设备别名、适应窗口修复、质量监测、默认配置、自定义壁纸与自建服务器设置。服务名称、协议、包标识和配置目录保留兼容旧版，部分系统路径仍显示 RustDesk。
-          - Windows 包未提供受信任代码签名；macOS 包未公证；Android 保持现有调试签名，跨版本可能无法覆盖安装，请先备份配置。iOS IPA 需要用户自行签名。此版本没有生成或替换发布证书。
-          - 安装包保持 rustdesk 文件名前缀以兼容既有发布流程。新增检查更新功能适用于 Flutter 客户端，Linux/Windows Sciter 旧界面请从 Releases 手动更新。
+          - 修复设备列表重命名仅保存在本机的问题：登录账号后保存至个人地址簿，同账号设备登录或刷新设备列表可同步；云端名称优先于旧本地别名，清空名称也能正确同步。保存失败明确提示，保留原名称。
+          - 修复硬件编码器拒绝动态码率调整时错误被忽略的问题：保留真实错误并重新初始化编码器应用目标值，不再假报成功。
+          - 增加被控端限频诊断日志，区分自适应发送目标、实际发送帧率和编码目标码率；新增120帧回归验证。120帧是上限，屏幕刷新率、画面变化和编解码能力仍会限制实测值；自动码率不会强行填满网络带宽。本版本未宣称已定位或解决所有60帧限制。
+          - 保留全部原有功能、自建服务器、背景、连接状态、帧率与码率选择、更新检查及蓝花品牌。
+          - Windows 未提供受信任代码签名；macOS 未公证；Android 保留既有签名，iOS IPA 需自行签名。下载后可使用 SHA256SUMS.txt 校验。
           NOTES
             gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" \
               --title "蓝花远控 BlueBloom Remote ${RELEASE_TAG#v}" --notes-file release-notes.md

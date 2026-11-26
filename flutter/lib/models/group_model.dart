@@ -62,6 +62,7 @@ class GroupModel {
   }
 
   Future<void> _pull() async {
+    await gFFI.abModel.pullDeviceAliases();
     List<DeviceGroupPayload> tmpDeviceGroups = List.empty(growable: true);
     if (!await _getDeviceGroups(tmpDeviceGroups)) {
       // old hbbs doesn't support this api
@@ -356,6 +357,8 @@ class GroupModel {
   }
 
   String _localAlias(String id) {
+    final accountAlias = gFFI.abModel.deviceAlias(id);
+    if (accountAlias != null) return accountAlias;
     // A device that has not connected yet has no durable recent-peer record.
     final alias = bind.mainGetLocalOption(key: 'laoluowl-device-alias-$id');
     return alias.isNotEmpty

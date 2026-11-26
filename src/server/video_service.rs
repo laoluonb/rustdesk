@@ -1490,7 +1490,10 @@ fn check_qos(
     if *ratio != next_ratio {
         *ratio = next_ratio;
         if encoder.support_changing_quality() {
-            allow_err!(encoder.set_quality(*ratio));
+            if let Err(err) = encoder.set_quality(*ratio) {
+                log::warn!("Restart encoder to apply bitrate: {err}");
+                bail!("SWITCH");
+            }
             video_qos.store_bitrate(encoder.bitrate());
         } else {
             // Now only vaapi doesn't support changing quality
@@ -1505,6 +1508,12 @@ fn check_qos(
         bail!("SWITCH");
     }
     if second_instant.elapsed() > Duration::from_secs(1) {
+        hbb_common::throttled_log!(
+            Duration::from_secs(15), info,
+            "Stream diagnostics: display={name}, pacing_fps={}, sent_fps={:.1}, encoder_kbps={}, manual_kbps={requested:?}",
+            video_qos.fps(), *send_counter as f64 / second_instant.elapsed().as_secs_f64(),
+            encoder.bitrate()
+        );
         *second_instant = Instant::now();
         video_qos.update_display_data(&name, *send_counter);
         *send_counter = 0;

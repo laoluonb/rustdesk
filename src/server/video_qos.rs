@@ -898,6 +898,20 @@ impl RttCalculator {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn high_fps_lan_reaches_requested_120_without_a_60_cap() {
+        let mut qos = super::VideoQoS::default();
+        qos.on_connection_open(1);
+        qos.user_custom_fps(1, 120);
+        qos.advance_ms(2000);
+        for _ in 0..30 {
+            qos.user_network_delay(1, 4);
+        }
+        assert_eq!(qos.fps(), 120);
+        qos.user_custom_fps(1, 30);
+        qos.user_network_delay(1, 4);
+        assert_eq!(qos.fps(), 30);
+    }
+    #[test]
     fn manual_bitrate_restores_auto_and_tracks_remaining_viewers() {
         let mut qos = super::VideoQoS::default();
         qos.on_connection_open(1);

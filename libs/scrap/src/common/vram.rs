@@ -171,9 +171,9 @@ impl EncoderApi for VRamEncoder {
             ratio,
         );
         if bitrate > 0 {
-            if self.encoder.set_bitrate((bitrate) as _).is_ok() {
-                self.bitrate = bitrate;
-            }
+            self.encoder.set_bitrate(bitrate as _)
+                .map_err(|e| anyhow!("Failed to set VRAM bitrate: {e:?}"))?;
+            self.bitrate = bitrate;
         }
         Ok(())
     }

@@ -878,12 +878,19 @@ abstract class BasePeerCard extends StatelessWidget {
             onSubmit: (String newName) async {
               if (newName != oldName) {
                 if (tab == PeerTabIndex.ab) {
-                  await gFFI.abModel.changeAlias(id: id, alias: newName);
+                  if (!await gFFI.abModel.changeAlias(id: id, alias: newName)) {
+                    return;
+                  }
                   await bind.mainSetPeerAlias(id: id, alias: newName);
+                  gFFI.groupModel.refreshLocalAliases();
                 } else {
                   if (tab == PeerTabIndex.group) {
+                    if (!await gFFI.abModel.changeDeviceAlias(peer, newName)) {
+                      showToast('别名未同步：请检查登录状态和网络后重试');
+                      return;
+                    }
                     await bind.mainSetLocalOption(
-                        key: 'laoluowl-device-alias-$id', value: newName);
+                        key: 'laoluowl-device-alias-$id', value: '');
                   }
                   await bind.mainSetPeerAlias(id: id, alias: newName);
                   showToast(translate('Successful'));
