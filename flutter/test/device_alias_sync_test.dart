@@ -67,7 +67,7 @@ class _Cloud extends Fake implements RustdeskImpl {
     }
     responses[url] = jsonEncode({
       'body': result == null ? '' : jsonEncode(result),
-      'status_code': 200, 'headers': {},
+      'status_code': 200, 'headers': {'content-type': 'application/json; charset=utf-8'},
     });
   }
 
