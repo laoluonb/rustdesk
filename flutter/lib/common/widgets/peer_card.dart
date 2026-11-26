@@ -1591,7 +1591,7 @@ void connectInPeerTab(BuildContext context, Peer peer, PeerTabIndex tab,
     String loginMethod = ''}) async {
   var password = '';
   bool isSharedPassword = false;
-  if (tab == PeerTabIndex.group && peer.alias.isNotEmpty) {
+  if (tab == PeerTabIndex.group) {
     await bind.mainSetPeerAlias(id: peer.id, alias: peer.alias);
   }
   if (tab == PeerTabIndex.ab) {
